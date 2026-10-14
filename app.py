@@ -47,6 +47,17 @@ else:
         df = None
 
 if df is not None:
+    # --- PROCESSAMENTO DO STATUS DOS PÉS ---
+    if 'Data da avaliação dos pés' in df.columns:
+        def status_pes(val):
+            if pd.isna(val) or str(val).strip() in ['', '-']:
+                return 'Pendente'
+            else:
+                return 'Avaliado'
+        df['Status_Pes'] = df['Data da avaliação dos pés'].apply(status_pes)
+    else:
+        df['Status_Pes'] = 'Pendente'
+
     # --- FILTROS NA BARRA LATERAL ---
     st.sidebar.markdown("---")
     st.sidebar.header("🔍 Filtros Operacionais")
@@ -55,35 +66,30 @@ if df is not None:
     microareas = sorted(df['Microárea'].dropna().astype(str).unique().tolist()) if 'Microárea' in df.columns else []
     selected_microarea = st.sidebar.selectbox("Microárea", ["Todas"] + microareas)
     
-    # Filtro por Situação de Consulta
-    if 'Dias desde o último atendimento médico' in df.columns:
-        df['Dias_Consulta'] = pd.to_numeric(df['Dias desde o último atendimento médico'], errors='coerce').fillna(0)
-    else:
-        df['Dias_Consulta'] = 0
-
-    status_consulta = st.sidebar.radio("Situação da Consulta Médica", ["Todos", "Em dia (<= 6 meses)", "Atrasadas (> 6 meses)"])
+    # Filtro por Status da Avaliação dos Pés
+    status_pes_filtro = st.sidebar.selectbox("Status da Avaliação dos Pés", ["Todos", "Avaliado", "Pendente"])
     
     # Aplicar Filtros
     df_filtered = df.copy()
     if selected_microarea != "Todas" and 'Microárea' in df.columns:
         df_filtered = df_filtered[df_filtered['Microárea'].astype(str) == selected_microarea]
     
-    if status_consulta == "Em dia (<= 6 meses)":
-        df_filtered = df_filtered[df_filtered['Dias_Consulta'] <= 180]
-    elif status_consulta == "Atrasadas (> 6 meses)":
-        df_filtered = df_filtered[df_filtered['Dias_Consulta'] > 180]
+    if status_pes_filtro != "Todos":
+        df_filtered = df_filtered[df_filtered['Status_Pes'] == status_pes_filtro]
 
     # --- INDICADORES PRINCIPAIS (KPIs) ---
     total_pacientes = len(df_filtered)
-    atrasadas_count = len(df_filtered[df_filtered['Dias_Consulta'] > 180])
-    em_dia_count = total_pacientes - atrasadas_count
-    pct_em_dia = (em_dia_count / total_pacientes * 100) if total_pacientes > 0 else 0
+    total_microareas = len(df_filtered['Microárea'].unique()) if 'Microárea' in df_filtered.columns else 0
+    
+    avaliados_count = len(df_filtered[df_filtered['Status_Pes'] == 'Avaliado'])
+    pendentes_count = len(df_filtered[df_filtered['Status_Pes'] == 'Pendente'])
+    pct_avaliados = (avaliados_count / total_pacientes * 100) if total_pacientes > 0 else 0
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total de Pacientes", total_pacientes)
-    col2.metric("Microáreas Atendidas", len(df_filtered['Microárea'].unique()) if 'Microárea' in df.columns else 0)
-    col3.metric("Consultas em Dia", f"{em_dia_count} ({pct_em_dia:.1f}%)")
-    col4.metric("Consultas Atrasadas (>6m)", atrasadas_count, delta=f"-{atrasadas_count}" if atrasadas_count > 0 else "0", delta_color="inverse")
+    col2.metric("Microáreas Atendidas", total_microareas)
+    col3.metric("Pés Avaliados", f"{avaliados_count} ({pct_avaliados:.1f}%)")
+    col4.metric("Pés Pendentes", pendentes_count, delta=f"-{pendentes_count}" if pendentes_count > 0 else "0", delta_color="inverse")
 
     st.markdown("---")
 
@@ -103,23 +109,15 @@ if df is not None:
             st.plotly_chart(fig_ma, use_container_width=True)
 
     with col_g2:
-        st.subheader("👣 Status da Avaliação dos Pés")
-        if 'Data da avaliação dos pés' in df_filtered.columns:
-            def status_pes(val):
-                if pd.isna(val) or str(val).strip() in ['', '-']:
-                    return 'Pendente / Não Realizada'
-                else:
-                    return 'Avaliado'
+        st.subheader("👣 Proporção de Avaliação dos Pés")
+        pes_counts = df_filtered['Status_Pes'].value_counts().reset_index()
+        pes_counts.columns = ['Status', 'Total']
 
-            df_filtered['Status_Pes'] = df_filtered['Data da avaliação dos pés'].apply(status_pes)
-            pes_counts = df_filtered['Status_Pes'].value_counts().reset_index()
-            pes_counts.columns = ['Status', 'Total']
-
-            fig_pes = px.pie(
-                pes_counts, names='Status', values='Total', hole=0.4,
-                color_discrete_map={'Avaliado': '#22c55e', 'Pendente / Não Realizada': '#ef4444'}
-            )
-            st.plotly_chart(fig_pes, use_container_width=True)
+        fig_pes = px.pie(
+            pes_counts, names='Status', values='Total', hole=0.4,
+            color_discrete_map={'Avaliado': '#22c55e', 'Pendente': '#ef4444'}
+        )
+        st.plotly_chart(fig_pes, use_container_width=True)
 
     st.markdown("---")
 
@@ -135,33 +133,4 @@ if df is not None:
                 df_filtered['CPF'].str.contains(search_query, case=False, na=False)
             ]
 
-    todas_colunas = list(df.columns)
-    if 'Dias_Consulta' in todas_colunas:
-        todas_colunas.remove('Dias_Consulta')
-
-    modo_visualizacao = st.radio("Modo de Exibição da Tabela:", ["Resumo Essencial", "Ver Todas as Colunas Originais"])
-
-    if modo_visualizacao == "Ver Todas as Colunas Originais":
-        colunas_selecionadas = todas_colunas
-    else:
-        colunas_selecionadas = [c for c in [
-            'Nome', 'Idade', 'Microárea', 'Telefone celular', 
-            'Data da avaliação dos pés', 'Última medição de pressão arterial', 
-            'Hemoglobina glicada', 'Dias desde o último atendimento médico'
-        ] if c in todas_colunas]
-
-    st.dataframe(df_filtered[colunas_selecionadas], use_container_width=True, hide_index=True)
-
-    # --- BOTÃO DE EXPORTAÇÃO ---
-    st.markdown("---")
-    df_export_final = df_filtered.drop(columns=['Status_Pes'], errors='ignore')
-    csv_export = df_export_final[todas_colunas].to_csv(index=False, sep=';', encoding='utf-8-sig')
-    st.download_button(
-        label="📥 Descarregar Relatório Completo Filtrado (CSV)",
-        data=csv_export,
-        file_name="relatorio_saude_completo_filtrado.csv",
-        mime="text/csv"
-    )
-
-else:
-    st.warning("⚠️ Por favor, carregue um ficheiro CSV do e-SUS válido para iniciar o painel.")
+    tod
