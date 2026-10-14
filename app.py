@@ -79,7 +79,7 @@ if df is not None:
 
     # --- INDICADORES PRINCIPAIS (KPIs) ---
     total_pacientes = len(df_filtered)
-    total_microareas = len(df_filtered['Microárea'].unique()) if 'Microárea' in df_filtered.columns else 0
+    total_microareas = len(df_filtered['Microárea'].unique()) if 'Microárea' in df.columns else 0
     
     avaliados_count = len(df_filtered[df_filtered['Status_Pes'] == 'Avaliado'])
     pendentes_count = len(df_filtered[df_filtered['Status_Pes'] == 'Pendente'])
@@ -133,4 +133,33 @@ if df is not None:
                 df_filtered['CPF'].str.contains(search_query, case=False, na=False)
             ]
 
-    tod
+    todas_colunas = list(df.columns)
+    if 'Status_Pes' in todas_colunas:
+        todas_colunas.remove('Status_Pes')
+
+    modo_visualizacao = st.radio("Modo de Exibição da Tabela:", ["Resumo Essencial", "Ver Todas as Colunas Originais"])
+
+    if modo_visualizacao == "Ver Todas as Colunas Originais":
+        colunas_selecionadas = todas_colunas
+    else:
+        colunas_selecionadas = [c for c in [
+            'Nome', 'Idade', 'Microárea', 'Telefone celular', 
+            'Data da avaliação dos pés', 'Última medição de pressão arterial', 
+            'Hemoglobina glicada', 'Dias desde o último atendimento médico'
+        ] if c in todas_colunas]
+
+    st.dataframe(df_filtered[colunas_selecionadas], use_container_width=True, hide_index=True)
+
+    # --- BOTÃO DE EXPORTAÇÃO ---
+    st.markdown("---")
+    df_export_final = df_filtered.drop(columns=['Status_Pes'], errors='ignore')
+    csv_export = df_export_final[todas_colunas].to_csv(index=False, sep=';', encoding='utf-8-sig')
+    st.download_button(
+        label="📥 Descarregar Relatório Completo Filtrado (CSV)",
+        data=csv_export,
+        file_name="relatorio_saude_completo_filtrado.csv",
+        mime="text/csv"
+    )
+
+else:
+    st.warning("⚠️ Por favor, carregue um ficheiro CSV do e-SUS válido para iniciar o painel.")
