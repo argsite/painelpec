@@ -22,7 +22,6 @@ def load_data(uploaded_file):
     try:
         df = pd.read_csv(uploaded_file, skiprows=24, sep=';', encoding='latin1')
         df = df.dropna(how='all', axis=1)
-        # Remover coluna vazia 'Unnamed: 43' se existir
         if 'Unnamed: 43' in df.columns:
             df = df.drop(columns=['Unnamed: 43'])
         return df
@@ -104,20 +103,31 @@ if df is not None:
             st.plotly_chart(fig_ma, use_container_width=True)
 
     with col_g2:
-        st.subheader("⚖️ Distribuição por Sexo")
-        if 'Sexo' in df_filtered.columns:
-            sexo_counts = df_filtered['Sexo'].value_counts().reset_index()
-            sexo_counts.columns = ['Sexo', 'Total']
-            fig_sexo = px.pie(sexo_counts, names='Sexo', values='Total', hole=0.4, 
-                              color_discrete_sequence=px.colors.qualitative.Pastel)
-            st.plotly_chart(fig_sexo, use_container_width=True)
+        st.subheader("👣 Status da Avaliação dos Pés")
+        if 'Data da avaliação dos pés' in df_filtered.columns:
+            # Classificar se tem data preenchida (diferente de vazio e diferente de '-')
+            def status_pes(val):
+                if pd.isna(val) or str(val).strip() in ['', '-']:
+                    return 'Pendente / Não Realizada'
+                else:
+                    return 'Avaliado'
+
+            df_filtered['Status_Pes'] = df_filtered['Data da avaliação dos pés'].apply(status_pes)
+            pes_counts = df_filtered['Status_Pes'].value_counts().reset_index()
+            pes_counts.columns = ['Status', 'Total']
+
+            fig_pes = px.pie(
+                pes_counts, names='Status', values='Total', hole=0.4,
+                color_discrete_map={'Avaliado': '#22c55e', 'Pendente / Não Realizada': '#ef4444'}
+            )
+            st.plotly_chart(fig_pes, use_container_width=True)
 
     st.markdown("---")
 
     # --- TABELA DETALHADA COM TODAS AS COLUNAS ---
     st.subheader("📋 Relatório Completo de Pacientes")
     
-    # Campo de busca por nome
+    # Campo de busca por nome ou CPF
     search_query = st.text_input("🔍 Pesquisar paciente por nome ou CPF:", "")
     if search_query:
         if 'Nome' in df_filtered.columns and 'CPF' in df_filtered.columns:
@@ -126,21 +136,20 @@ if df is not None:
                 df_filtered['CPF'].str.contains(search_query, case=False, na=False)
             ]
 
-    # Opção para escolher colunas
     todas_colunas = list(df.columns)
-    # Remover colunas auxiliares criadas internamente
     if 'Dias_Consulta' in todas_colunas:
         todas_colunas.remove('Dias_Consulta')
+    if 'Status_Pes' in df_filtered.columns and 'Status_Pes' not in todas_colunas:
+        # Não adiciona na lista original do dataframe para manter as colunas originais limpas no export
 
-    modo_visualizacao = st.radio("Modo de Exibição da Tabela:", ["Resumo Essencial", "Ver Todas as 43 Colunas"])
+    modo_visualizacao = st.radio("Modo de Exibição da Tabela:", ["Resumo Essencial", "Ver Todas as Colunas Originais"])
 
-    if modo_visualizacao == "Ver Todas as 43 Colunas":
+    if modo_visualizacao == "Ver Todas as Colunas Originais":
         colunas_selecionadas = todas_colunas
     else:
-        # Colunas padrão recomendadas para visão rápida
         colunas_selecionadas = [c for c in [
-            'Nome', 'Data de nascimento', 'Idade', 'Sexo', 'Microárea', 
-            'Telefone celular', 'Última medição de pressão arterial', 
+            'Nome', 'Idade', 'Microárea', 'Telefone celular', 
+            'Data da avaliação dos pés', 'Última medição de pressão arterial', 
             'Hemoglobina glicada', 'Dias desde o último atendimento médico'
         ] if c in todas_colunas]
 
@@ -148,7 +157,9 @@ if df is not None:
 
     # --- BOTÃO DE EXPORTAÇÃO ---
     st.markdown("---")
-    csv_export = df_filtered[todas_colunas].to_csv(index=False, sep=';', encoding='utf-8-sig')
+    # Remover coluna temporária antes de exportar
+    df_export_final = df_filtered.drop(columns=['Status_Pes'], errors='ignore')
+    csv_export = df_export_final[todas_colunas].to_csv(index=False, sep=';', encoding='utf-8-sig')
     st.download_button(
         label="📥 Descarregar Relatório Completo Filtrado (CSV)",
         data=csv_export,
