@@ -92,9 +92,21 @@ if df is not None:
         if 'Microárea' in df_filtered.columns:
             ma_counts = df_filtered['Microárea'].astype(str).value_counts().reset_index()
             ma_counts.columns = ['Microárea', 'Total']
-            fig_ma = px.bar(ma_counts, x='Microárea', y='Total', color='Total', 
-                             color_continuousscale='Blues', text_auto=True)
-            fig_ma.update_layout(xaxis_title="Microárea", yaxis_title="Nº de Pacientes", showlegend=False)
+            
+            # Gráfico de barras corrigido e otimizado
+            fig_ma = px.bar(
+                ma_counts, 
+                x='Microárea', 
+                y='Total', 
+                text='Total',
+                color='Microárea'
+            )
+            fig_ma.update_traces(textposition='outside')
+            fig_ma.update_layout(
+                xaxis_title="Microárea", 
+                yaxis_title="Nº de Pacientes", 
+                showlegend=False
+            )
             st.plotly_chart(fig_ma, use_container_width=True)
 
     with col_g2:
