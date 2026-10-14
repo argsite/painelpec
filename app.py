@@ -105,7 +105,6 @@ if df is not None:
     with col_g2:
         st.subheader("👣 Status da Avaliação dos Pés")
         if 'Data da avaliação dos pés' in df_filtered.columns:
-            # Classificar se tem data preenchida (diferente de vazio e diferente de '-')
             def status_pes(val):
                 if pd.isna(val) or str(val).strip() in ['', '-']:
                     return 'Pendente / Não Realizada'
@@ -139,8 +138,6 @@ if df is not None:
     todas_colunas = list(df.columns)
     if 'Dias_Consulta' in todas_colunas:
         todas_colunas.remove('Dias_Consulta')
-    if 'Status_Pes' in df_filtered.columns and 'Status_Pes' not in todas_colunas:
-        # Não adiciona na lista original do dataframe para manter as colunas originais limpas no export
 
     modo_visualizacao = st.radio("Modo de Exibição da Tabela:", ["Resumo Essencial", "Ver Todas as Colunas Originais"])
 
@@ -157,7 +154,6 @@ if df is not None:
 
     # --- BOTÃO DE EXPORTAÇÃO ---
     st.markdown("---")
-    # Remover coluna temporária antes de exportar
     df_export_final = df_filtered.drop(columns=['Status_Pes'], errors='ignore')
     csv_export = df_export_final[todas_colunas].to_csv(index=False, sep=';', encoding='utf-8-sig')
     st.download_button(
