@@ -1074,150 +1074,64 @@ def analyze_vinculados_data(csv_text: str) -> dict:
 
 @st.cache_data(show_spinner=False)
 def analyze_duplicados_data(csv_text: str) -> dict:
+    """Lê o relatório de possíveis cadastros duplicados (cabeçalho na linha 15 / índice 14)
+    contendo dois cidadãos por linha:
+      - Cidadão 1: Nome (Coluna B / idx 1), Data de Nascimento (Coluna E / idx 4), Nome da Mãe (Coluna F / idx 5)
+      - Cidadão 2: Nome (Coluna H / idx 7), Data de Nascimento (Coluna K / idx 10), Nome da Mãe (Coluna L / idx 11)
+    """
     rows = parse_rows(csv_text)
     if not rows:
         return {}
 
-    header_idx = -1
-    for i in range(min(len(rows), 45)):
-        if not rows[i]:
-            continue
-        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
-        if ("nome" in row_norm or "cidadao" in row_norm) and (
-            "duplic" in row_norm or "nascimento" in row_norm or "mae" in row_norm or "cpf" in row_norm or "cns" in row_norm
-        ):
-            header_idx = i
-            break
-
-    if header_idx == -1 or header_idx >= len(rows):
+    # Linha 15 em base-1 corresponde ao índice 14
+    header_idx = 14
+    if header_idx >= len(rows):
         return {}
 
-    fields = [sanitize_text(f) for f in rows[header_idx]]
+    # Verifica se há cabeçalho próximo caso haja variação de 1-2 linhas em exportações futuras
+    for cand_idx in (14, 13, 15, 12, 16):
+        if 0 <= cand_idx < len(rows) and rows[cand_idx]:
+            row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[cand_idx]).lower())
+            if "nome" in row_norm or "cidadao" in row_norm or "nascimento" in row_norm:
+                header_idx = cand_idx
+                break
+
     data_rows = rows[header_idx + 1 :]
-
-    def find_col(candidates: list[str], exclude: list[str] | None = None) -> int:
-        exclude = exclude or []
-        for idx, f in enumerate(fields):
-            norm = strip_accents(f.lower()).strip()
-            if any(ex in norm for ex in exclude):
-                continue
-            if norm in candidates:
-                return idx
-        for idx, f in enumerate(fields):
-            norm = strip_accents(f.lower()).strip()
-            if any(ex in norm for ex in exclude):
-                continue
-            for cand in candidates:
-                if cand in norm:
-                    return idx
-        return -1
-
-    col_grupo = find_col(["grupo", "id grupo", "codigo grupo", "codigo", "registro"])
-    col_motivo = find_col(["criterio", "motivo", "tipo", "duplicidade", "justificativa", "regra", "inconsistencia"])
-    col_nome = find_col(["nome", "nome do cidadao", "cidadao", "paciente"], exclude=["mae", "pai", "equipe", "unidade"])
-    col_mae = find_col(["nome da mae", "mae", "filiacao"])
-    col_cpf = find_col(["cpf"], exclude=["cns"])
-    col_cns = find_col(["cns"], exclude=["cpf"])
-    col_cpf_cns = find_col(["cpf/cns", "documento"])
-    col_nasc = find_col(["data de nascimento", "nascimento", "dt nascimento"])
-    col_sexo = find_col(["sexo"])
-    col_equipe = find_col(["nome equipe", "equipe", "ine"])
-    col_micro = find_col(["microarea", "micro"])
-    col_end = find_col(["endereco", "logradouro"])
-    col_tel = find_col(["telefone", "celular", "contato"])
-    col_atual = find_col(["ultima atualizacao", "atualizacao", "data cadastro", "cadastro"])
-
     records = []
-    motivos_set = set()
-    micros_set = set()
-    equipes_set = set()
 
-    for idx_r, row in enumerate(data_rows, start=1):
-        if not row or len(row) < 2:
+    for row in data_rows:
+        if not row or len(row) < 8:
             continue
 
-        def get_val(c_idx: int, default: str = "-") -> str:
-            if 0 <= c_idx < len(row):
-                v = sanitize_text(row[c_idx])
+        def get_col(idx: int, default: str = "-") -> str:
+            if 0 <= idx < len(row):
+                v = sanitize_text(row[idx])
                 return v if v else default
             return default
 
-        nome = get_val(col_nome, "")
-        if not nome:
-            # Fallback caso o CSV tenha colunas genéricas sem cabeçalho padrão
-            non_empty = [sanitize_text(c) for c in row if sanitize_text(c)]
-            if not non_empty:
-                continue
-            nome = non_empty[0]
+        nome_1 = get_col(1, "")   # Coluna B
+        nasc_1 = get_col(4, "-")  # Coluna E
+        mae_1 = get_col(5, "-")   # Coluna F
+        nome_2 = get_col(7, "")   # Coluna H
+        nasc_2 = get_col(10, "-") # Coluna K
+        mae_2 = get_col(11, "-")  # Coluna L
 
-        if col_cpf != -1 or col_cns != -1:
-            raw_cpf = get_val(col_cpf, "-")
-            raw_cns = get_val(col_cns, "-")
-            cpf_val, _ = split_cpf_cns(raw_cpf) if raw_cpf != "-" else ("-", "-")
-            if cpf_val == "-" and raw_cpf != "-":
-                cpf_val = raw_cpf
-            cns_val = re.sub(r"\D", "", raw_cns) if raw_cns != "-" else "-"
-            if not cns_val:
-                cns_val = raw_cns
-        else:
-            cpf_val, cns_val = split_cpf_cns(get_val(col_cpf_cns, "-"))
+        # Ignora linhas vazias ou rodapés informativos do relatório
+        if not nome_1 and not nome_2:
+            continue
 
-        grupo = get_val(col_grupo, "-")
-        motivo = get_val(col_motivo, "Possível Duplicidade")
-        mae = get_val(col_mae, "-")
-        nasc = get_val(col_nasc, "-")
-        sexo = get_val(col_sexo, "-")
-        equipe = get_val(col_equipe, "-")
-        micro = get_val(col_micro, "Não informada")
-        endereco = get_val(col_end, "-")
-        telefone = get_val(col_tel, "-")
-        atualizacao = get_val(col_atual, "-")
-
-        motivos_set.add(motivo)
-        micros_set.add(micro)
-        if equipe != "-":
-            equipes_set.add(equipe)
-
-        rec = {
-            "Nome do(a) Paciente": nome,
-            "CPF": cpf_val,
-            "CNS": cns_val,
-            "Nascimento": nasc,
-            "Sexo": sexo,
-            "Nome da Mãe": mae,
-            "Microárea": micro,
-            "Endereço": endereco,
-        }
-        if col_grupo != -1:
-            rec["Grupo"] = grupo
-        if col_motivo != -1:
-            rec["Critério / Motivo"] = motivo
-        if col_equipe != -1:
-            rec["Equipe"] = equipe
-        if col_tel != -1:
-            rec["Telefone"] = telefone
-        if col_atual != -1:
-            rec["Última Atualização"] = atualizacao
-
-        rec["_motivo"] = motivo
-        rec["_micro"] = micro
-        rec["_equipe"] = equipe
-        rec["_sexo"] = sexo
-        records.append(rec)
+        records.append({
+            "Nome do Cidadão 1": nome_1 if nome_1 else "-",
+            "Data de Nascimento Cidadão 1": nasc_1,
+            "Nome da Mãe Cidadão 1": mae_1,
+            "Nome do Cidadão 2": nome_2 if nome_2 else "-",
+            "Data de Nascimento Cidadão 2": nasc_2,
+            "Nome da Mãe Cidadão 2": mae_2,
+        })
 
     return {
         "total": len(records),
         "records": records,
-        "motivos": sorted(motivos_set),
-        "microareas": sorted(
-            micros_set,
-            key=lambda x: (
-                x == "Não informada",
-                int(re.search(r"\d+", x).group()) if re.search(r"\d+", x) else 999,
-                x,
-            ),
-        ),
-        "equipes": sorted(equipes_set),
     }
 
 
@@ -1831,7 +1745,7 @@ if cond_cfg["kind"] == "vinculados":
 if cond_cfg["kind"] == "duplicados":
     d_stats = analyze_duplicados_data(csv_text)
     if not d_stats or d_stats["total"] == 0:
-        st.error("Não foi possível identificar cabeçalhos ou registros no relatório de cadastros duplicados.")
+        st.error("Não foi possível identificar registros válidos a partir da linha 15 no relatório de cadastros duplicados.")
         st.stop()
 
     total_d = d_stats["total"]
@@ -1844,72 +1758,51 @@ if cond_cfg["kind"] == "duplicados":
         unsafe_allow_html=True,
     )
 
-    has_motivos = len(d_stats["motivos"]) > 1
-    has_equipes = len(d_stats["equipes"]) > 1
-
-    if has_motivos and has_equipes:
-        fc1, fc2, fc3, fc4 = st.columns([1.3, 1.1, 1.1, 2.2])
-        sel_motivo_d = fc1.selectbox("Critério", ["Todos os Critérios"] + d_stats["motivos"], key="d_motivo", label_visibility="collapsed")
-        sel_equipe_d = fc2.selectbox("Equipe", ["Todas as Equipes"] + d_stats["equipes"], key="d_equipe", label_visibility="collapsed")
-        sel_micro_d = fc3.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
-        search_d = fc4.text_input(
+    fc1, fc2 = st.columns([2.5, 1.2])
+    search_d = (
+        fc1.text_input(
             "Buscar",
-            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
+            placeholder="🔍 Buscar por nome do cidadão 1 ou 2, data de nascimento ou nome da mãe...",
             key="d_search",
             label_visibility="collapsed",
-        ).strip().lower()
-    elif has_motivos:
-        fc1, fc2, fc3 = st.columns([1.3, 1.1, 2.4])
-        sel_motivo_d = fc1.selectbox("Critério", ["Todos os Critérios"] + d_stats["motivos"], key="d_motivo", label_visibility="collapsed")
-        sel_equipe_d = "Todas as Equipes"
-        sel_micro_d = fc2.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
-        search_d = fc3.text_input(
-            "Buscar",
-            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
-            key="d_search",
-            label_visibility="collapsed",
-        ).strip().lower()
-    else:
-        fc1, fc2, fc3 = st.columns([1.2, 1.1, 2.5])
-        sel_motivo_d = "Todos os Critérios"
-        sel_equipe_d = "Todas as Equipes"
-        sel_micro_d = fc1.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
-        sel_sexo_d = fc2.selectbox("Sexo", ["Todos os Sexos", "Feminino", "Masculino"], key="d_sexo", label_visibility="collapsed")
-        search_d = fc3.text_input(
-            "Buscar",
-            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
-            key="d_search",
-            label_visibility="collapsed",
-        ).strip().lower()
-
-    if has_motivos:
-        sel_sexo_d = "Todos os Sexos"
+        )
+        .strip()
+        .lower()
+    )
+    filtro_mesmo_nome = fc2.selectbox(
+        "Filtro Rápido",
+        [
+            "Todos os Pares",
+            "Mesmo Nome (Cidadão 1 = Cidadão 2)",
+            "Nomes Diferentes",
+        ],
+        key="d_filtro_par",
+        label_visibility="collapsed",
+    )
 
     rows_d = []
     for r in d_stats["records"]:
-        if sel_motivo_d != "Todos os Critérios" and r["_motivo"] != sel_motivo_d:
+        n1_norm = strip_accents(r["Nome do Cidadão 1"].lower()).strip()
+        n2_norm = strip_accents(r["Nome do Cidadão 2"].lower()).strip()
+
+        if filtro_mesmo_nome == "Mesmo Nome (Cidadão 1 = Cidadão 2)" and n1_norm != n2_norm:
             continue
-        if sel_equipe_d != "Todas as Equipes" and r["_equipe"] != sel_equipe_d:
-            continue
-        if sel_micro_d != "Todas as Microáreas" and r["_micro"] != sel_micro_d:
-            continue
-        if sel_sexo_d != "Todos os Sexos" and not r["_sexo"].lower().startswith(sel_sexo_d[0].lower()):
+        if filtro_mesmo_nome == "Nomes Diferentes" and n1_norm == n2_norm:
             continue
 
-        public_row = {k: v for k, v in r.items() if not k.startswith("_")}
         if search_d:
-            haystack = " ".join(str(v).lower() for v in public_row.values())
+            haystack = " ".join(str(v).lower() for v in r.values())
             if search_d not in haystack:
                 continue
 
-        rows_d.append(public_row)
+        rows_d.append(r)
 
     df_d = pd.DataFrame(rows_d)
     d_info, d_csv, d_xlsx = st.columns([3.5, 1, 1])
     d_info.markdown(
         compact_html(
             f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
-            f"<i class='fa-solid fa-clone' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_d)}</strong> de {total_d} possíveis cadastros duplicados.</p>"
+            f"<i class='fa-solid fa-clone' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_d)}</strong> de {total_d} pares de possíveis cadastros duplicados.</p>"
         ),
         unsafe_allow_html=True,
     )
@@ -1930,7 +1823,7 @@ if cond_cfg["kind"] == "duplicados":
     )
 
     if df_d.empty:
-        st.info("Nenhum cadastro duplicado encontrado com estes filtros.")
+        st.info("Nenhum par de cadastro duplicado encontrado com estes filtros.")
     else:
         st.dataframe(
             df_d,
@@ -1938,7 +1831,8 @@ if cond_cfg["kind"] == "duplicados":
             hide_index=True,
             height=540,
             column_config={
-                "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
+                "Nome do Cidadão 1": st.column_config.TextColumn(pinned=True, width="medium"),
+                "Nome do Cidadão 2": st.column_config.TextColumn(width="medium"),
             },
         )
 
