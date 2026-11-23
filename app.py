@@ -72,7 +72,7 @@ st.markdown(
             gap: 0.45rem;
         }
 
-        /* Barra de Abas Superiores (Estilo Nav-Tabs Grandes) */
+        /* Barra de Abas Superiores */
         .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
             display: flex !important;
             flex-wrap: wrap !important;
@@ -119,7 +119,7 @@ st.markdown(
             font-weight: 800 !important;
         }
 
-        /* Sub-abas da Tabela Nominal (pílulas limpas) */
+        /* Sub-abas da Tabela Nominal */
         .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
             display: flex !important;
             flex-wrap: wrap !important;
@@ -300,13 +300,21 @@ st.markdown(
 )
 
 # ==============================================================================
-# CONFIGURAÇÕES DAS LINHAS DE CUIDADO E MÉTRICAS
+# CONFIGURAÇÕES DAS ABAS E LINHAS DE CUIDADO
 # ==============================================================================
 CONDITIONS = {
-    "geral": {
-        "label": "Geral",
-        "full_label": "Geral - Todos os Pacientes",
+    "vinculados": {
+        "label": "Cidadãos Vinculados",
+        "full_label": "Cidadãos Vinculados",
+        "file": "vinculados.csv",
+        "kind": "vinculados",
+        "metrics": [],
+    },
+    "geral_territorio": {
+        "label": "Geral Território",
+        "full_label": "Geral Território",
         "file": "acompanhamento-condicao-saude_2026-11-13-13-26.csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "consulta",
@@ -356,6 +364,7 @@ CONDITIONS = {
         "label": "C2 - Desenvolvimento Infantil",
         "full_label": "C2 - Desenvolvimento Infantil",
         "file": "acompanhamento-condicao-saude_2026-11-05-08-44.csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "consulta_1",
@@ -409,6 +418,7 @@ CONDITIONS = {
         "label": "C3 - Gestantes e Puérperas",
         "full_label": "C3 - Gestantes e Puérperas",
         "file": "acompanhamento-condicao-saude_2026-11-05-07-42 (1).csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "cons_12s",
@@ -508,6 +518,7 @@ CONDITIONS = {
         "label": "C4 - Diabéticos",
         "full_label": "C4 - Diabéticos",
         "file": "acompanhamento-condicao-saude_2026-11-04-15-17.csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "consulta_med",
@@ -575,6 +586,7 @@ CONDITIONS = {
         "label": "C5 - Hipertensos",
         "full_label": "C5 - Hipertensos",
         "file": "acompanhamento-condicao-saude_2026-11-04-15-17 (1).csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "consulta_med",
@@ -622,6 +634,7 @@ CONDITIONS = {
         "label": "C6 - Idosos",
         "full_label": "C6 - Idosos",
         "file": "acompanhamento-condicao-saude_2026-11-05-08-41.csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "consulta_med_12m",
@@ -667,6 +680,7 @@ CONDITIONS = {
         "label": "C7 - Saúde da Mulher",
         "full_label": "C7 - Saúde da Mulher",
         "file": "acompanhamento-condicao-saude_2026-11-05-08-47.csv",
+        "kind": "condicao",
         "metrics": [
             {
                 "id": "cito",
@@ -728,25 +742,38 @@ def sanitize_text(val) -> str:
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return ""
     s = str(val)
+    # Converte caracteres fullwidth deslocados (0xFF00 + byte Latin-1)
+    converted = []
+    for ch in s:
+        code = ord(ch)
+        if 0xFF00 <= code <= 0xFFFF:
+            b = code - 0xFF00
+            if 0 <= b <= 255:
+                converted.append(bytes([b]).decode("latin-1", errors="replace"))
+                continue
+        converted.append(ch)
+    s = "".join(converted)
+
     replacements = {
         "Ã§": "ç", "Ã‡": "Ç", "Ã£": "ã", "Ãƒ": "Ã",
         "Ã¡": "á", "Ã ": "Á", "Ã©": "é", "Ã‰": "É",
         "Ã­": "í", "Ã“": "Ó", "Ãº": "ú", "Ãš": "Ú",
         "Ãª": "ê", "ÃÊ": "Ê", "Ã´": "ô", "Ã”": "Ô",
-        "Ã ": "à", "Ã€": "À",
+        "Ã ": "à", "Ã€": "À", "Ãµ": "õ", "Ã•": "Õ",
     }
     for k, v in replacements.items():
         s = s.replace(k, v)
-    s = re.sub(r"[\ufffd\x7f-\x9f]", "", s)
-    return s.strip()
+    return re.sub(r"[\ufffd\x7f-\x9f]", "", s).strip()
 
 
 def decode_csv_bytes(raw_bytes: bytes) -> str:
-    try:
-        text = raw_bytes.decode("iso-8859-1")
-    except UnicodeDecodeError:
-        text = raw_bytes.decode("utf-8", errors="replace")
-    return sanitize_text(text)
+    for enc in ("utf-8-sig", "iso-8859-1", "cp1252"):
+        try:
+            text = raw_bytes.decode(enc)
+            return sanitize_text(text)
+        except UnicodeDecodeError:
+            continue
+    return sanitize_text(raw_bytes.decode("utf-8", errors="replace"))
 
 
 def parse_rows(csv_text: str) -> list[list[str]]:
@@ -756,6 +783,21 @@ def parse_rows(csv_text: str) -> list[list[str]]:
     first_chunk = "\n".join(lines[:30])
     delimiter = ";" if first_chunk.count(";") >= first_chunk.count(",") else ","
     return list(csv.reader(lines, delimiter=delimiter))
+
+
+def extract_age_years(idade_raw: str, current_year: int) -> int | None:
+    if not idade_raw or idade_raw == "-":
+        return None
+    m_date = re.search(r"\d{2}/\d{2}/(\d{4})", idade_raw)
+    if m_date:
+        return current_year - int(m_date.group(1))
+    low = idade_raw.lower()
+    if "menor" in low or (("mes" in low or "dia" in low) and not re.search(r"^\d+\s*ano", low)):
+        return 0
+    m_num = re.match(r"^(\d+)", idade_raw)
+    if m_num:
+        return int(m_num.group(1))
+    return None
 
 
 def has_date_or_recent(val: str, max_days: int | None) -> bool:
@@ -783,6 +825,145 @@ def has_date_or_recent(val: str, max_days: int | None) -> bool:
 
 
 @st.cache_data(show_spinner=False)
+def analyze_vinculados_data(csv_text: str) -> dict:
+    rows = parse_rows(csv_text)
+    if not rows:
+        return {}
+
+    header_idx = -1
+    for i in range(min(len(rows), 40)):
+        if not rows[i]:
+            continue
+        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
+        if "microarea" in row_norm and "nome" in row_norm:
+            header_idx = i
+            break
+
+    if header_idx == -1 or header_idx >= len(rows):
+        return {}
+
+    fields = [sanitize_text(f) for f in rows[header_idx]]
+    data_rows = rows[header_idx + 1 :]
+
+    def find_col(candidates: list[str]) -> int:
+        for idx, f in enumerate(fields):
+            norm = strip_accents(f.lower()).strip()
+            for cand in candidates:
+                if norm == cand or cand in norm:
+                    return idx
+        return -1
+
+    col_equipe = find_col(["nome equipe", "equipe"])
+    col_micro = find_col(["microarea"])
+    col_end = find_col(["endereco"])
+    col_cpf = find_col(["cpf/cns", "cpf", "cns"])
+    col_nome = find_col(["nome", "cidadao"])
+    col_idade = find_col(["idade"])
+    col_sexo = find_col(["sexo"])
+    col_nasc = find_col(["data de nascimento", "nascimento"])
+    col_cel = find_col(["telefone celular", "celular"])
+    col_res = find_col(["telefone residencial", "residencial"])
+    col_cont = find_col(["telefone de contato", "contato"])
+    col_atual = find_col(["ultima atualizacao cadastral", "atualizacao cadastral", "atualizacao"])
+
+    total = 0
+    sexo_counts = {"Feminino": 0, "Masculino": 0}
+    faixa_counts = {
+        "0-19 anos": 0,
+        "20-39 anos": 0,
+        "40-59 anos": 0,
+        "60-79 anos": 0,
+        "80+ anos": 0,
+    }
+    microareas: dict[str, int] = {}
+    com_telefone = 0
+    sem_endereco = 0
+    patients = []
+    current_year = datetime.now().year
+
+    for row in data_rows:
+        if not row or len(row) < 4:
+            continue
+        nome = sanitize_text(row[col_nome]) if 0 <= col_nome < len(row) else ""
+        if not nome:
+            continue
+
+        total += 1
+        equipe = sanitize_text(row[col_equipe]) if 0 <= col_equipe < len(row) and sanitize_text(row[col_equipe]) else "-"
+        micro = sanitize_text(row[col_micro]) if 0 <= col_micro < len(row) and sanitize_text(row[col_micro]) else "Não informada"
+        endereco = sanitize_text(row[col_end]) if 0 <= col_end < len(row) and sanitize_text(row[col_end]) else "-"
+        cpf_cns = sanitize_text(row[col_cpf]) if 0 <= col_cpf < len(row) and sanitize_text(row[col_cpf]) else "-"
+        idade_txt = sanitize_text(row[col_idade]) if 0 <= col_idade < len(row) and sanitize_text(row[col_idade]) else "-"
+        sexo_txt = sanitize_text(row[col_sexo]) if 0 <= col_sexo < len(row) and sanitize_text(row[col_sexo]) else "-"
+        nasc_txt = sanitize_text(row[col_nasc]) if 0 <= col_nasc < len(row) and sanitize_text(row[col_nasc]) else "-"
+        cel_txt = sanitize_text(row[col_cel]) if 0 <= col_cel < len(row) and sanitize_text(row[col_cel]) else "-"
+        res_txt = sanitize_text(row[col_res]) if 0 <= col_res < len(row) and sanitize_text(row[col_res]) else "-"
+        cont_txt = sanitize_text(row[col_cont]) if 0 <= col_cont < len(row) and sanitize_text(row[col_cont]) else "-"
+        atual_txt = sanitize_text(row[col_atual]) if 0 <= col_atual < len(row) and sanitize_text(row[col_atual]) else "-"
+
+        microareas[micro] = microareas.get(micro, 0) + 1
+
+        if sexo_txt.lower().startswith("f"):
+            sexo_counts["Feminino"] += 1
+        elif sexo_txt.lower().startswith("m"):
+            sexo_counts["Masculino"] += 1
+
+        faixa_str = ""
+        idade_num = extract_age_years(idade_txt, current_year)
+        if idade_num is not None:
+            if idade_num < 20:
+                faixa_counts["0-19 anos"] += 1
+                faixa_str = "0-19 anos"
+            elif idade_num < 40:
+                faixa_counts["20-39 anos"] += 1
+                faixa_str = "20-39 anos"
+            elif idade_num < 60:
+                faixa_counts["40-59 anos"] += 1
+                faixa_str = "40-59 anos"
+            elif idade_num < 80:
+                faixa_counts["60-79 anos"] += 1
+                faixa_str = "60-79 anos"
+            else:
+                faixa_counts["80+ anos"] += 1
+                faixa_str = "80+ anos"
+
+        has_phone = any(t not in ("", "-") for t in (cel_txt, res_txt, cont_txt))
+        if has_phone:
+            com_telefone += 1
+
+        no_addr = endereco in ("", "-")
+        if no_addr:
+            sem_endereco += 1
+
+        patients.append({
+            "Nome do(a) Paciente": nome,
+            "CPF/CNS": cpf_cns,
+            "Nascimento": nasc_txt,
+            "Idade": idade_txt,
+            "Sexo": sexo_txt,
+            "Endereço": endereco,
+            "Microárea": micro,
+            "Celular": cel_txt,
+            "Contato": cont_txt if cont_txt != "-" else res_txt,
+            "Última Atualização": atual_txt,
+            "Equipe": equipe,
+            "_faixa": faixa_str,
+            "_sem_endereco": no_addr,
+            "_sem_telefone": not has_phone,
+        })
+
+    return {
+        "total": total,
+        "com_telefone": com_telefone,
+        "sem_endereco": sem_endereco,
+        "microareas": microareas,
+        "sexo": sexo_counts,
+        "faixa_etaria": faixa_counts,
+        "patients": patients,
+    }
+
+
+@st.cache_data(show_spinner=False)
 def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     rows = parse_rows(csv_text)
     if not rows:
@@ -792,7 +973,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     for i in range(min(len(rows), 50)):
         if not rows[i]:
             continue
-        row_norm = strip_accents(" ".join(rows[i]).lower())
+        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
         if "idade" in row_norm and "sexo" in row_norm:
             header_idx = i
             break
@@ -900,18 +1081,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
 
         idade_texto = idade_raw if idade_raw else "-"
         faixa_str = ""
-        idade_num = None
-
-        if idade_raw:
-            m_date = re.search(r"\d{2}/\d{2}/(\d{4})", idade_raw)
-            if m_date:
-                idade_num = current_year - int(m_date.group(1))
-            elif "menor" in idade_raw.lower():
-                idade_num = 0
-            else:
-                m_num = re.match(r"^(\d+)", idade_raw)
-                if m_num:
-                    idade_num = int(m_num.group(1))
+        idade_num = extract_age_years(idade_raw, current_year)
 
         if idade_num is not None:
             if idade_num < 20:
@@ -1028,6 +1198,107 @@ def render_kpi_card(
     st.markdown(compact_html(html), unsafe_allow_html=True)
 
 
+def render_distribution_charts(stats: dict, hide_sex: bool = False):
+    chart_cols = st.columns(2 if hide_sex else 3)
+
+    plotly_layout_base = dict(
+        margin=dict(l=15, r=15, t=10, b=20),
+        height=275,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", color="#64748b", size=12),
+        showlegend=False,
+    )
+
+    with chart_cols[0]:
+        st.markdown(
+            compact_html(
+                '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+                '<div class="section-title"><i class="fa-solid fa-chart-bar" style="color: #3b82f6;"></i><span>Distribuição por Faixa Etária</span></div>'
+            ),
+            unsafe_allow_html=True,
+        )
+        fig_idade = go.Figure(
+            data=[
+                go.Bar(
+                    x=list(stats["faixa_etaria"].keys()),
+                    y=list(stats["faixa_etaria"].values()),
+                    marker=dict(
+                        color="rgba(59, 130, 246, 0.78)",
+                        line=dict(color="rgb(59, 130, 246)", width=1.2),
+                    ),
+                    hovertemplate="%{x}: <b>%{y}</b> cidadãos<extra></extra>",
+                )
+            ]
+        )
+        fig_idade.update_layout(**plotly_layout_base)
+        fig_idade.update_yaxes(gridcolor="#e2e8f0", zeroline=False)
+        st.plotly_chart(fig_idade, use_container_width=True, config={"displayModeBar": False})
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if not hide_sex:
+        with chart_cols[1]:
+            st.markdown(
+                compact_html(
+                    '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+                    '<div class="section-title"><i class="fa-solid fa-venus-mars" style="color: #ec4899;"></i><span>Distribuição por Sexo</span></div>'
+                ),
+                unsafe_allow_html=True,
+            )
+            fig_sexo = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=["Feminino", "Masculino"],
+                        values=[stats["sexo"]["Feminino"], stats["sexo"]["Masculino"]],
+                        hole=0.58,
+                        marker=dict(
+                            colors=["rgba(236, 72, 153, 0.82)", "rgba(59, 130, 246, 0.82)"],
+                            line=dict(color="#ffffff", width=2),
+                        ),
+                        textinfo="percent",
+                        hovertemplate="%{label}: <b>%{value}</b> (%{percent})<extra></extra>",
+                    )
+                ]
+            )
+            fig_sexo.update_layout(
+                margin=dict(l=15, r=15, t=10, b=25),
+                height=275,
+                paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="Inter, sans-serif", color="#64748b", size=12),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+            )
+            st.plotly_chart(fig_sexo, use_container_width=True, config={"displayModeBar": False})
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    with chart_cols[-1]:
+        st.markdown(
+            compact_html(
+                '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+                '<div class="section-title"><i class="fa-solid fa-map-location-dot" style="color: #10b981;"></i><span>Cidadãos por Microárea</span></div>'
+            ),
+            unsafe_allow_html=True,
+        )
+        micro_sorted = sorted(stats["microareas"].items(), key=lambda x: x[1], reverse=True)
+        fig_micro = go.Figure(
+            data=[
+                go.Bar(
+                    x=[m[0] for m in micro_sorted],
+                    y=[m[1] for m in micro_sorted],
+                    marker=dict(
+                        color="rgba(16, 185, 129, 0.78)",
+                        line=dict(color="rgb(16, 185, 129)", width=1.2),
+                    ),
+                    hovertemplate="%{x}: <b>%{y}</b> cidadãos<extra></extra>",
+                )
+            ]
+        )
+        fig_micro.update_layout(**plotly_layout_base)
+        fig_micro.update_yaxes(gridcolor="#e2e8f0", zeroline=False)
+        fig_micro.update_xaxes(tickangle=-35)
+        st.plotly_chart(fig_micro, use_container_width=True, config={"displayModeBar": False})
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
 # ==============================================================================
 # INTERFACE PRINCIPAL
 # ==============================================================================
@@ -1037,11 +1308,7 @@ if "csv_store" not in st.session_state:
 cond_keys = list(CONDITIONS.keys())
 cond_labels = [CONDITIONS[k]["label"] for k in cond_keys]
 
-# Pré-verifica status para exibir no header
-preview_cond = cond_keys[0]
-if "active_cond_key" in st.session_state:
-    preview_cond = st.session_state["active_cond_key"]
-
+preview_cond = st.session_state.get("active_cond_key", cond_keys[0])
 has_any_data = st.session_state["csv_store"].get(preview_cond) is not None
 status_text = "Dados Em Memória" if has_any_data else "Dados Carregados"
 status_icon = '<i class="fa-solid fa-check-circle" style="color: #86efac;"></i>'
@@ -1056,7 +1323,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Abas superiores estilizadas
 st.markdown('<div class="top-nav-wrapper">', unsafe_allow_html=True)
 selected_label = st.radio(
     "Linha de Cuidado",
@@ -1098,13 +1364,203 @@ if not csv_text:
         compact_html(
             '<div style="background-color: #fefce8; border-left: 4px solid #facc15; padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; color: #854d0e;">'
             '<strong><i class="fa-solid fa-triangle-exclamation"></i> Importar relatório do PEC</strong><br>'
-            '<span style="font-size: 0.9rem;">Carregue o arquivo CSV correspondente acima para gerar a análise desta linha de cuidado.</span>'
+            '<span style="font-size: 0.9rem;">Carregue o arquivo CSV correspondente acima para gerar a análise desta aba.</span>'
             '</div>'
         ),
         unsafe_allow_html=True,
     )
     st.stop()
 
+# ==============================================================================
+# ABA 1: CIDADÃOS VINCULADOS
+# ==============================================================================
+if cond_cfg["kind"] == "vinculados":
+    v_stats = analyze_vinculados_data(csv_text)
+    if not v_stats or v_stats["total"] == 0:
+        st.error("Não foi possível identificar cabeçalhos ou cidadãos no relatório de vinculados.")
+        st.stop()
+
+    total_v = v_stats["total"]
+    pct_fone = round((v_stats["com_telefone"] / total_v) * 100) if total_v else 0
+    pct_sem_end = round((v_stats["sem_endereco"] / total_v) * 100) if total_v else 0
+    pct_fem = round((v_stats["sexo"]["Feminino"] / total_v) * 100) if total_v else 0
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        render_kpi_card(
+            title="Total de Cidadãos Vinculados",
+            value_str=str(total_v),
+            border_hex="#3b82f6",
+            icon_cls="fa-users",
+            icon_hex="#2563eb",
+            icon_bg="#dbeafe",
+        )
+    with k2:
+        render_kpi_card(
+            title="Com Telefone Cadastrado",
+            value_str=str(v_stats["com_telefone"]),
+            border_hex="#10b981",
+            icon_cls="fa-phone",
+            icon_hex="#059669",
+            icon_bg="#d1fae5",
+            sub_html=f'<span class="kpi-pct" style="color: #10b981;">({pct_fone}%)</span>',
+            bar_pct=pct_fone,
+            bar_hex="#10b981",
+        )
+    with k3:
+        render_kpi_card(
+            title="Sem Endereço no Cadastro",
+            value_str=str(v_stats["sem_endereco"]),
+            border_hex="#f43f5e",
+            icon_cls="fa-location-dot",
+            icon_hex="#e11d48",
+            icon_bg="#ffe4e6",
+            sub_html=f'<span class="kpi-pct" style="color: #f43f5e;">({pct_sem_end}%)</span>',
+            bar_pct=pct_sem_end,
+            bar_hex="#f43f5e",
+        )
+    with k4:
+        render_kpi_card(
+            title="Sexo Feminino",
+            value_str=str(v_stats["sexo"]["Feminino"]),
+            border_hex="#ec4899",
+            icon_cls="fa-venus",
+            icon_hex="#db2777",
+            icon_bg="#fce7f3",
+            sub_html=f'<span class="kpi-pct" style="color: #ec4899;">({pct_fem}%)</span>',
+            bar_pct=pct_fem,
+            bar_hex="#ec4899",
+        )
+
+    render_distribution_charts(v_stats, hide_sex=False)
+
+    st.markdown(
+        compact_html(
+            '<div class="glass-card" style="padding-bottom: 0.75rem;">'
+            '<div class="section-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-address-book" style="color: #2563eb;"></i><span>Lista Nominal de Cidadãos Vinculados</span></div>'
+        ),
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="sub-nav-wrapper">', unsafe_allow_html=True)
+    selected_v_tab = st.radio(
+        "Filtro Rápido Vinculados",
+        options=["Todos os Vinculados", "Pendência: Sem Endereço", "Pendência: Sem Telefone"],
+        index=0,
+        horizontal=True,
+        key="v_tab_filter",
+        label_visibility="collapsed",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    f1, f2, f3 = st.columns([1.2, 1.2, 2])
+    micros_v = sorted(
+        v_stats["microareas"].keys(),
+        key=lambda x: (
+            x == "Não informada",
+            int(re.search(r"\d+", x).group()) if re.search(r"\d+", x) else 999,
+            x,
+        ),
+    )
+    sel_micro_v = f1.selectbox("Microárea", ["Todas as Microáreas"] + micros_v, key="v_micro", label_visibility="collapsed")
+    sel_faixa_v = f2.selectbox(
+        "Faixa Etária",
+        ["Todas as Idades", "0-19 anos", "20-39 anos", "40-59 anos", "60-79 anos", "80+ anos"],
+        key="v_faixa",
+        label_visibility="collapsed",
+    )
+    search_v = (
+        f3.text_input(
+            "Buscar",
+            placeholder="🔍 Buscar nome, CPF/CNS, telefone ou endereço...",
+            key="v_search",
+            label_visibility="collapsed",
+        )
+        .strip()
+        .lower()
+    )
+
+    rows_v = []
+    for p in v_stats["patients"]:
+        if selected_v_tab == "Pendência: Sem Endereço" and not p["_sem_endereco"]:
+            continue
+        if selected_v_tab == "Pendência: Sem Telefone" and not p["_sem_telefone"]:
+            continue
+        if sel_micro_v != "Todas as Microáreas" and p["Microárea"] != sel_micro_v:
+            continue
+        if sel_faixa_v != "Todas as Idades" and p["_faixa"] != sel_faixa_v:
+            continue
+        if search_v and not (
+            search_v in p["Nome do(a) Paciente"].lower()
+            or search_v in p["CPF/CNS"].lower()
+            or search_v in p["Endereço"].lower()
+            or search_v in p["Celular"].lower()
+        ):
+            continue
+
+        rows_v.append({
+            "Nome do(a) Paciente": p["Nome do(a) Paciente"],
+            "CPF/CNS": p["CPF/CNS"],
+            "Nascimento": p["Nascimento"],
+            "Idade": p["Idade"],
+            "Sexo": p["Sexo"],
+            "Endereço": p["Endereço"],
+            "Microárea": p["Microárea"],
+            "Celular": p["Celular"],
+            "Contato": p["Contato"],
+            "Última Atualização": p["Última Atualização"],
+        })
+
+    df_v = pd.DataFrame(rows_v)
+    c_info, c_csv, c_xlsx = st.columns([3.5, 1, 1])
+    c_info.markdown(
+        compact_html(
+            f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
+            f"<i class='fa-solid fa-users' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_v)}</strong> de {total_v} cidadãos vinculados.</p>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+    v_slug = re.sub(r"[^a-zA-Z0-9]", "_", selected_v_tab)
+    c_csv.download_button(
+        "📄 Exportar CSV",
+        data=df_v.to_csv(index=False, sep=";").encode("utf-8-sig"),
+        file_name=f"Cidadaos_Vinculados_{v_slug}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    c_xlsx.download_button(
+        "📊 Exportar XLSX",
+        data=to_excel_bytes(df_v, sheet_name="Vinculados"),
+        file_name=f"Cidadaos_Vinculados_{v_slug}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+    if df_v.empty:
+        st.info("Nenhum cidadão encontrado com estes filtros.")
+    else:
+        st.dataframe(
+            df_v,
+            use_container_width=True,
+            hide_index=True,
+            height=460,
+            column_config={
+                "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
+            },
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(
+        compact_html('<div class="esus-footer">Gerado a partir dos dados do e-SUS PEC • by @argsite</div>'),
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
+# ==============================================================================
+# DEMAIS ABAS: GERAL TERRITÓRIO E C2 - C7
+# ==============================================================================
 stats = analyze_condition_data(csv_text, current_cond)
 if not stats or stats["total"] == 0:
     st.error("Não foi possível identificar cabeçalhos ou registros válidos no arquivo selecionado.")
@@ -1112,12 +1568,11 @@ if not stats or stats["total"] == 0:
 
 current_metrics = cond_cfg["metrics"]
 total_patients = stats["total"]
+is_geral_territorio = current_cond == "geral_territorio"
 
-# ==============================================================================
 # 1. CARDS DE KPIs
-# ==============================================================================
 visible_metrics = [m for m in current_metrics if not m.get("hidden")]
-num_cards = 1 + (1 if current_cond != "geral" else 0) + len(visible_metrics)
+num_cards = 1 + (0 if is_geral_territorio else 1) + len(visible_metrics)
 kpi_cols = st.columns(min(max(num_cards, 2), 4))
 
 with kpi_cols[0]:
@@ -1131,7 +1586,7 @@ with kpi_cols[0]:
     )
 
 col_idx = 1
-if current_cond != "geral":
+if not is_geral_territorio:
     total_pts = sum(
         m.get("points", 0)
         for p in stats["patients"]
@@ -1182,10 +1637,8 @@ for m in visible_metrics:
         )
     col_idx += 1
 
-# ==============================================================================
-# 2. TABELA DE BOAS PRÁTICAS E DESEMPENHO
-# ==============================================================================
-if current_cond != "geral":
+# 2. TABELA DE BOAS PRÁTICAS
+if not is_geral_territorio:
     rows_html = []
     for m in current_metrics:
         cnt = stats["metric_counts"].get(m["id"], 0)
@@ -1222,112 +1675,11 @@ if current_cond != "geral":
     )
     st.markdown(compact_html(bp_card_html), unsafe_allow_html=True)
 
-# ==============================================================================
 # 3. GRÁFICOS
-# ==============================================================================
 hide_sex = current_cond in ("gestantes", "mulher")
-chart_cols = st.columns(2 if hide_sex else 3)
+render_distribution_charts(stats, hide_sex=hide_sex)
 
-plotly_layout_base = dict(
-    margin=dict(l=15, r=15, t=10, b=20),
-    height=275,
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#64748b", size=12),
-    showlegend=False,
-)
-
-with chart_cols[0]:
-    st.markdown(
-        compact_html(
-            '<div class="glass-card" style="padding-bottom: 0.5rem;">'
-            '<div class="section-title"><i class="fa-solid fa-chart-bar" style="color: #3b82f6;"></i><span>Distribuição por Faixa Etária</span></div>'
-        ),
-        unsafe_allow_html=True,
-    )
-    fig_idade = go.Figure(
-        data=[
-            go.Bar(
-                x=list(stats["faixa_etaria"].keys()),
-                y=list(stats["faixa_etaria"].values()),
-                marker=dict(
-                    color="rgba(59, 130, 246, 0.78)",
-                    line=dict(color="rgb(59, 130, 246)", width=1.2),
-                ),
-                hovertemplate="%{x}: <b>%{y}</b> pacientes<extra></extra>",
-            )
-        ]
-    )
-    fig_idade.update_layout(**plotly_layout_base)
-    fig_idade.update_yaxes(gridcolor="#e2e8f0", zeroline=False)
-    st.plotly_chart(fig_idade, use_container_width=True, config={"displayModeBar": False})
-    st.markdown("</div>", unsafe_allow_html=True)
-
-if not hide_sex:
-    with chart_cols[1]:
-        st.markdown(
-            compact_html(
-                '<div class="glass-card" style="padding-bottom: 0.5rem;">'
-                '<div class="section-title"><i class="fa-solid fa-venus-mars" style="color: #ec4899;"></i><span>Distribuição por Sexo</span></div>'
-            ),
-            unsafe_allow_html=True,
-        )
-        fig_sexo = go.Figure(
-            data=[
-                go.Pie(
-                    labels=["Feminino", "Masculino"],
-                    values=[stats["sexo"]["Feminino"], stats["sexo"]["Masculino"]],
-                    hole=0.58,
-                    marker=dict(
-                        colors=["rgba(236, 72, 153, 0.82)", "rgba(59, 130, 246, 0.82)"],
-                        line=dict(color="#ffffff", width=2),
-                    ),
-                    textinfo="percent",
-                    hovertemplate="%{label}: <b>%{value}</b> (%{percent})<extra></extra>",
-                )
-            ]
-        )
-        fig_sexo.update_layout(
-            margin=dict(l=15, r=15, t=10, b=25),
-            height=275,
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="Inter, sans-serif", color="#64748b", size=12),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-        )
-        st.plotly_chart(fig_sexo, use_container_width=True, config={"displayModeBar": False})
-        st.markdown("</div>", unsafe_allow_html=True)
-
-with chart_cols[-1]:
-    st.markdown(
-        compact_html(
-            '<div class="glass-card" style="padding-bottom: 0.5rem;">'
-            '<div class="section-title"><i class="fa-solid fa-map-location-dot" style="color: #10b981;"></i><span>Pacientes por Microárea</span></div>'
-        ),
-        unsafe_allow_html=True,
-    )
-    micro_sorted = sorted(stats["microareas"].items(), key=lambda x: x[1], reverse=True)
-    fig_micro = go.Figure(
-        data=[
-            go.Bar(
-                x=[m[0] for m in micro_sorted],
-                y=[m[1] for m in micro_sorted],
-                marker=dict(
-                    color="rgba(16, 185, 129, 0.78)",
-                    line=dict(color="rgb(16, 185, 129)", width=1.2),
-                ),
-                hovertemplate="%{x}: <b>%{y}</b> pacientes<extra></extra>",
-            )
-        ]
-    )
-    fig_micro.update_layout(**plotly_layout_base)
-    fig_micro.update_yaxes(gridcolor="#e2e8f0", zeroline=False)
-    fig_micro.update_xaxes(tickangle=-35)
-    st.plotly_chart(fig_micro, use_container_width=True, config={"displayModeBar": False})
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ==============================================================================
 # 4. ACOMPANHAMENTO NOMINAL E BUSCA ATIVA
-# ==============================================================================
 st.markdown(
     compact_html(
         '<div class="glass-card" style="padding-bottom: 0.75rem;">'
@@ -1494,8 +1846,6 @@ else:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown(
-    compact_html(
-        '<div class="esus-footer">Gerado a partir dos dados do e-SUS PEC • by @argsite</div>'
-    ),
+    compact_html('<div class="esus-footer">Gerado a partir dos dados do e-SUS PEC • by @argsite</div>'),
     unsafe_allow_html=True,
 )
