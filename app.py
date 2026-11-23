@@ -1329,4 +1329,127 @@ sel_faixa = f_col2.selectbox(
     label_visibility="collapsed",
 )
 search_q = (
-    f_col3
+    f_col3.text_input(
+        "Buscar",
+        placeholder="🔍 Buscar paciente, nascimento ou endereço...",
+        key=f"search_{current_cond}",
+        label_visibility="collapsed",
+    )
+    .strip()
+    .lower()
+)
+
+is_geral_tab = selected_tab == "Matriz Geral"
+target_metric = None
+if not is_geral_tab:
+    for m in current_metrics:
+        if f"Pendência: {m.get('shortName') or m.get('name')}" == selected_tab:
+            target_metric = m
+            break
+
+filtered_display = []
+filtered_export = []
+
+for p in stats["patients"]:
+    if not is_geral_tab and target_metric is not None:
+        if p["_metrics"].get(target_metric["id"]):
+            continue
+    if sel_micro != "Todas as Microáreas" and p["Microárea"] != sel_micro:
+        continue
+    if sel_faixa != "Todas as Idades" and p["_faixa"] != sel_faixa:
+        continue
+    if search_q and not (
+        search_q in p["Nome do(a) Paciente"].lower()
+        or search_q in p["Nascimento"].lower()
+        or search_q in p["Endereço"].lower()
+    ):
+        continue
+
+    base_row = {
+        "Nome do(a) Paciente": p["Nome do(a) Paciente"],
+        "Nascimento": p["Nascimento"],
+        "Idade": p["Idade"],
+        "Endereço": p["Endereço"],
+        "Microárea": p["Microárea"],
+    }
+    row_disp = dict(base_row)
+    row_exp = dict(base_row)
+
+    if is_geral_tab:
+        for m in current_metrics:
+            col_label = m.get("shortName") or m.get("name")
+            ok = p["_metrics"].get(m["id"], False)
+            row_disp[col_label] = "✅ Atingido" if ok else "❌ Pendente"
+            row_exp[col_label] = "ATINGIDO" if ok else "PENDENTE"
+    else:
+        row_disp["Status"] = "🔴 Pendente"
+        row_exp["Status"] = "PENDENTE"
+
+    filtered_display.append(row_disp)
+    filtered_export.append(row_exp)
+
+df_display = pd.DataFrame(filtered_display)
+df_export = pd.DataFrame(filtered_export)
+
+info_col, btn_csv_col, btn_xlsx_col = st.columns([3.5, 1, 1])
+
+if is_geral_tab:
+    info_col.markdown(
+        compact_html(
+            f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
+            f"<i class='fa-solid fa-users' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_display)}</strong> de {total_patients} pacientes na Matriz Geral.</p>"
+        ),
+        unsafe_allow_html=True,
+    )
+else:
+    m_title = target_metric.get("shortName") or target_metric.get("name") if target_metric else ""
+    info_col.markdown(
+        compact_html(
+            f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
+            f"<i class='fa-solid fa-triangle-exclamation' style='color: #f43f5e;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_display)}</strong> pacientes com pendência em <strong style='color: #1e293b;'>{m_title}</strong>.</p>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+pendencia_suffix = f"Pendencia_{target_metric['id']}" if target_metric else "Pendencia"
+base_filename = (
+    f"Acompanhamento_{re.sub(r'[^a-zA-Z0-9]', '_', cond_cfg['full_label'])}_"
+    f"{'Matriz_Geral' if is_geral_tab else pendencia_suffix}"
+)
+
+btn_csv_col.download_button(
+    "📄 Exportar CSV",
+    data=df_export.to_csv(index=False, sep=";").encode("utf-8-sig"),
+    file_name=f"{base_filename}.csv",
+    mime="text/csv",
+    use_container_width=True,
+)
+btn_xlsx_col.download_button(
+    "📊 Exportar XLSX",
+    data=to_excel_bytes(df_export),
+    file_name=f"{base_filename}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True,
+)
+
+if df_display.empty:
+    st.info("Nenhum paciente encontrado com estes filtros.")
+else:
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        height=460,
+        column_config={
+            "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
+        },
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown(
+    compact_html(
+        '<div class="esus-footer">Gerado a partir dos dados do e-SUS PEC • by @argsite</div>'
+    ),
+    unsafe_allow_html=True,
+)
