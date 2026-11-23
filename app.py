@@ -806,10 +806,40 @@ def is_missing_cpf(cpf_cns_val: str) -> bool:
     digits = re.sub(r"\D", "", cpf_cns_val)
     if not digits:
         return True
-    # No e-SUS PEC, CPF tem 11 dígitos e CNS tem 15 dígitos
     if len(digits) == 15:
         return True
     return len(digits) != 11
+
+
+def split_cpf_cns(cpf_cns_val: str) -> tuple[str, str]:
+    """Separa o campo CPF/CNS em duas colunas distintas: (CPF formatado, CNS)."""
+    if not cpf_cns_val or cpf_cns_val.strip() in ("", "-"):
+        return "-", "-"
+
+    cpf_out = "-"
+    cns_out = "-"
+    parts = re.split(r"[/|;,\s]+", cpf_cns_val.strip())
+
+    for part in parts:
+        digits = re.sub(r"\D", "", part)
+        if len(digits) == 11:
+            cpf_out = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        elif len(digits) == 15:
+            cns_out = digits
+
+    # Fallback caso os números venham concatenados sem separador
+    if cpf_out == "-" and cns_out == "-":
+        digits = re.sub(r"\D", "", cpf_cns_val)
+        if len(digits) == 11:
+            cpf_out = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        elif len(digits) == 15:
+            cns_out = digits
+        elif len(digits) == 26:
+            cpf_digits, cns_digits = digits[:11], digits[11:]
+            cpf_out = f"{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}"
+            cns_out = cns_digits
+
+    return cpf_out, cns_out
 
 
 def has_date_or_recent(val: str, max_days: int | None) -> bool:
@@ -857,7 +887,12 @@ def analyze_vinculados_data(csv_text: str) -> dict:
     fields = [sanitize_text(f) for f in rows[header_idx]]
     data_rows = rows[header_idx + 1 :]
 
-    def find_col(candidates: list[str]) -> int:
+    def find_col(candidates: list[str], exact_first: bool = True) -> int:
+        if exact_first:
+            for idx, f in enumerate(fields):
+                norm = strip_accents(f.lower()).strip()
+                if norm in candidates:
+                    return idx
         for idx, f in enumerate(fields):
             norm = strip_accents(f.lower()).strip()
             for cand in candidates:
@@ -869,7 +904,15 @@ def analyze_vinculados_data(csv_text: str) -> dict:
     col_micro = find_col(["microarea"])
     col_end = find_col(["endereco"])
     col_cpf = find_col(["cpf/cns", "cpf", "cns"])
-    col_nome = find_col(["nome", "cidadao"])
+    # Busca correspondência exata primeiro para não confundir "Nome" com "Nome equipe"
+    col_nome = find_col(["nome", "nome do cidadao", "cidadao", "paciente"])
+    if col_nome == col_equipe:
+        for idx, f in enumerate(fields):
+            norm = strip_accents(f.lower()).strip()
+            if idx != col_equipe and ("nome" in norm or "cidadao" in norm):
+                col_nome = idx
+                break
+
     col_idade = find_col(["idade"])
     col_sexo = find_col(["sexo"])
     col_nasc = find_col(["data de nascimento", "nascimento"])
@@ -906,6 +949,7 @@ def analyze_vinculados_data(csv_text: str) -> dict:
         micro = sanitize_text(row[col_micro]) if 0 <= col_micro < len(row) and sanitize_text(row[col_micro]) else "Não informada"
         endereco = sanitize_text(row[col_end]) if 0 <= col_end < len(row) and sanitize_text(row[col_end]) else "-"
         cpf_cns = sanitize_text(row[col_cpf]) if 0 <= col_cpf < len(row) and sanitize_text(row[col_cpf]) else "-"
+        cpf_val, cns_val = split_cpf_cns(cpf_cns)
         idade_txt = sanitize_text(row[col_idade]) if 0 <= col_idade < len(row) and sanitize_text(row[col_idade]) else "-"
         sexo_txt = sanitize_text(row[col_sexo]) if 0 <= col_sexo < len(row) and sanitize_text(row[col_sexo]) else "-"
         nasc_txt = sanitize_text(row[col_nasc]) if 0 <= col_nasc < len(row) and sanitize_text(row[col_nasc]) else "-"
@@ -948,13 +992,14 @@ def analyze_vinculados_data(csv_text: str) -> dict:
         if no_addr:
             sem_endereco += 1
 
-        no_cpf = is_missing_cpf(cpf_cns)
+        no_cpf = cpf_val == "-"
         if no_cpf:
             sem_cpf += 1
 
         patients.append({
             "Nome do(a) Paciente": nome,
-            "CPF/CNS": cpf_cns,
+            "CPF": cpf_val,
+            "CNS": cns_val,
             "Nascimento": nasc_txt,
             "Idade": idade_txt,
             "Sexo": sexo_txt,
@@ -1496,7 +1541,7 @@ if cond_cfg["kind"] == "vinculados":
     search_v = (
         f3.text_input(
             "Buscar",
-            placeholder="🔍 Buscar nome, CPF/CNS, telefone ou endereço...",
+            placeholder="🔍 Buscar nome, CPF, CNS, telefone ou endereço...",
             key="v_search",
             label_visibility="collapsed",
         )
@@ -1518,7 +1563,8 @@ if cond_cfg["kind"] == "vinculados":
             continue
         if search_v and not (
             search_v in p["Nome do(a) Paciente"].lower()
-            or search_v in p["CPF/CNS"].lower()
+            or search_v in p["CPF"].lower()
+            or search_v in p["CNS"].lower()
             or search_v in p["Endereço"].lower()
             or search_v in p["Celular"].lower()
         ):
@@ -1526,7 +1572,8 @@ if cond_cfg["kind"] == "vinculados":
 
         rows_v.append({
             "Nome do(a) Paciente": p["Nome do(a) Paciente"],
-            "CPF/CNS": p["CPF/CNS"],
+            "CPF": p["CPF"],
+            "CNS": p["CNS"],
             "Nascimento": p["Nascimento"],
             "Idade": p["Idade"],
             "Sexo": p["Sexo"],
