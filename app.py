@@ -752,6 +752,8 @@ CONDITIONS = {
                 "bpDesc": "Ter pelo 01 (um) atendimento presencial ou remoto sobre atenção à saúde sexual e reprodutiva nos últimos 12 meses.",
                 "points": 30,
                 "hidden": True,
+                "forceCol": 35,
+                "maxDays": 365,
             },
             {
                 "id": "mama",
