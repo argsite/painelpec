@@ -1141,14 +1141,16 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     if not rows:
         return {}
 
+    # Linha 25 em base-1 corresponde ao índice 24
     header_idx = 24
-    for i in range(min(len(rows), 50)):
-        if not rows[i]:
-            continue
-        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
-        if "idade" in row_norm and "sexo" in row_norm:
-            header_idx = i
-            break
+    if condition_key != "mulher":
+        for i in range(min(len(rows), 50)):
+            if not rows[i]:
+                continue
+            row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
+            if "idade" in row_norm and "sexo" in row_norm:
+                header_idx = i
+                break
 
     if header_idx >= len(rows):
         return {}
