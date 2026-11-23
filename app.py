@@ -23,8 +23,7 @@ st.markdown(
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         header[data-testid="stHeader"] {
-            background: transparent;
-            height: 0.35rem;
+            display: none !important;
         }
         .stApp {
             background-color: #f8fafc;
@@ -32,95 +31,107 @@ st.markdown(
             color: #1e293b;
         }
         .block-container {
-            padding-top: 0.85rem !important;
+            padding-top: 0 !important;
             padding-bottom: 2rem !important;
-            max-width: 96% !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+            max-width: 100% !important;
         }
 
-        /* Header Azul Principal */
+        /* Header Azul Principal Full-Bleed (idêntico ao sistema original) */
         .esus-header {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            background-color: #1d63eb;
             color: #ffffff;
-            padding: 1.15rem 1.75rem 0.95rem 1.75rem;
-            border-radius: 1rem 1rem 0.5rem 0.5rem;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+            padding: 1.15rem 1.75rem 0.9rem 1.75rem;
+            margin-left: -1.5rem;
+            margin-right: -1.5rem;
+            margin-bottom: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 0;
         }
         .esus-header-title {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            font-size: 1.35rem;
-            font-weight: 800;
+            gap: 0.7rem;
+            font-size: 1.32rem;
+            font-weight: 700;
             letter-spacing: -0.01em;
             margin: 0;
         }
+        .esus-header-title i {
+            font-size: 1.4rem;
+        }
         .esus-status-pill {
-            background: rgba(255, 255, 255, 0.16);
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            padding: 0.45rem 1rem;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 0.35rem 0.9rem;
             border-radius: 9999px;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             gap: 0.45rem;
         }
 
-        /* Barra de Abas Superiores */
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
+        /* Barra de Abas Superiores Integrada ao Header Azul */
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) {
+            background-color: #1d63eb !important;
+            margin-left: -1.5rem !important;
+            margin-right: -1.5rem !important;
+            padding: 0.25rem 1.75rem 0 1.75rem !important;
+            box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08) !important;
+            margin-bottom: 1.15rem !important;
+        }
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] {
             display: flex !important;
             flex-wrap: wrap !important;
-            gap: 0.4rem !important;
-            background-color: #1e40af !important;
-            padding: 0.55rem 0.85rem 0 0.85rem !important;
-            border-radius: 0 0 0.9rem 0.9rem !important;
-            box-shadow: 0 4px 10px rgba(30, 64, 175, 0.16) !important;
-            margin-bottom: 1rem !important;
+            gap: 0.35rem !important;
             align-items: flex-end !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label {
-            background-color: rgba(255, 255, 255, 0.12) !important;
-            border: 1px solid rgba(255, 255, 255, 0.18) !important;
-            border-bottom: none !important;
-            border-radius: 0.65rem 0.65rem 0 0 !important;
-            padding: 0.72rem 1.25rem !important;
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            border: none !important;
+            border-radius: 0.55rem 0.55rem 0 0 !important;
+            padding: 0.62rem 1.15rem !important;
             margin: 0 !important;
             cursor: pointer !important;
-            transition: all 0.16s ease !important;
-            min-height: 46px !important;
+            transition: background-color 0.15s ease !important;
+            min-height: 40px !important;
             display: inline-flex !important;
             align-items: center !important;
         }
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
-            background-color: rgba(255, 255, 255, 0.24) !important;
-            transform: translateY(-1px);
+        /* Oculta a bolinha padrão do radio button */
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label > div:first-child {
+            display: none !important;
         }
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
-            font-size: 0.93rem !important;
-            font-weight: 700 !important;
-            color: #e0e7ff !important;
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label:hover {
+            background-color: rgba(255, 255, 255, 0.18) !important;
+        }
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label p {
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            color: #ffffff !important;
             margin: 0 !important;
             white-space: nowrap !important;
         }
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label:has(input:checked),
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label[data-checked="true"] {
             background-color: #ffffff !important;
-            border-color: #ffffff !important;
-            box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.12) !important;
-            transform: translateY(0) !important;
+            box-shadow: 0 -1px 4px rgba(15, 23, 42, 0.06) !important;
         }
-        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
-            color: #1d4ed8 !important;
-            font-weight: 800 !important;
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label:has(input:checked) p,
+        div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label="Linha de Cuidado"]) > div[role="radiogroup"] > label[data-checked="true"] p {
+            color: #1d63eb !important;
+            font-weight: 700 !important;
         }
 
         /* Sub-abas da Tabela Nominal */
-        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] {
             display: flex !important;
             flex-wrap: wrap !important;
             gap: 0.45rem !important;
@@ -129,7 +140,7 @@ st.markdown(
             border-radius: 0.7rem !important;
             margin-bottom: 0.85rem !important;
         }
-        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label {
             background-color: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
             border-radius: 0.5rem !important;
@@ -140,17 +151,22 @@ st.markdown(
             display: inline-flex !important;
             align-items: center !important;
         }
-        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label > div:first-child {
+            display: none !important;
+        }
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label p {
             font-size: 0.84rem !important;
             font-weight: 600 !important;
             color: #475569 !important;
             margin: 0 !important;
         }
-        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
-            background-color: #2563eb !important;
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label:has(input:checked),
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label[data-checked="true"] {
+            background-color: #1d63eb !important;
             border-color: #1d4ed8 !important;
         }
-        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label:has(input:checked) p,
+        div[data-testid="stRadio"]:not(:has(div[role="radiogroup"][aria-label="Linha de Cuidado"])) > div[role="radiogroup"] > label[data-checked="true"] p {
             color: #ffffff !important;
             font-weight: 700 !important;
         }
@@ -1387,7 +1403,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<div class="top-nav-wrapper">', unsafe_allow_html=True)
 selected_label = st.radio(
     "Linha de Cuidado",
     options=cond_labels,
@@ -1395,7 +1410,6 @@ selected_label = st.radio(
     horizontal=True,
     label_visibility="collapsed",
 )
-st.markdown("</div>", unsafe_allow_html=True)
 
 selected_idx = cond_labels.index(selected_label)
 current_cond = cond_keys[selected_idx]
