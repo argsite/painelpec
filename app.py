@@ -754,6 +754,7 @@ CONDITIONS = {
                 "hidden": True,
                 "forceCol": 35,
                 "maxDays": 365,
+                "requireDate": True,
             },
             {
                 "id": "mama",
@@ -888,15 +889,15 @@ def split_cpf_cns(cpf_cns_val: str) -> tuple[str, str]:
 
     return cpf_out, cns_out
 
-
-def has_date_or_recent(val: str, max_days: int | None) -> bool:
+def has_date_or_recent(val: str, max_days: int | None, require_date: bool = False) -> bool:
     if not val or val == "-":
         return False
     val = val.strip()
-    if val.upper() == "SIM":
-        return True
-    if re.fullmatch(r"\d+", val):
-        return True if max_days is None else int(val) <= max_days
+    if not require_date:
+        if val.upper() == "SIM":
+            return True
+        if re.fullmatch(r"\d+", val):
+            return True if max_days is None else int(val) <= max_days
 
     m = re.search(r"(\d{2})/(\d{2})/(\d{2,4})", val)
     if m:
@@ -906,7 +907,7 @@ def has_date_or_recent(val: str, max_days: int | None) -> bool:
         year = year_str + 2000 if year_str < 100 else year_str
         try:
             dt = datetime(year, month, day)
-            ref = datetime(2026, 11, 5)
+            ref = datetime.now()
             return abs((ref - dt).days) <= max_days
         except ValueError:
             return False
@@ -1305,7 +1306,11 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
             else:
                 c_idx = metric_cols[mid]
                 if 0 <= c_idx < len(row):
-                    has_met = has_date_or_recent(sanitize_text(row[c_idx]), m.get("maxDays"))
+                    has_met = has_date_or_recent(
+                        sanitize_text(row[c_idx]),
+                        m.get("maxDays"),
+                        require_date=bool(m.get("requireDate")),
+                    )
 
             p_metrics[mid] = has_met
             if has_met:
