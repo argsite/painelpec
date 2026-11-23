@@ -24,7 +24,7 @@ st.markdown(
     <style>
         header[data-testid="stHeader"] {
             background: transparent;
-            height: 0.4rem;
+            height: 0.35rem;
         }
         .stApp {
             background-color: #f8fafc;
@@ -32,66 +32,24 @@ st.markdown(
             color: #1e293b;
         }
         .block-container {
-            padding-top: 1rem !important;
+            padding-top: 0.85rem !important;
             padding-bottom: 2rem !important;
             max-width: 96% !important;
-        }
-
-        /* Abas superiores grandes e fáceis de clicar (st.radio horizontal) */
-        div[data-testid="stRadio"] > div[role="radiogroup"] {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 0.5rem !important;
-            background-color: #e2e8f0 !important;
-            padding: 0.45rem !important;
-            border-radius: 0.85rem !important;
-            margin-bottom: 0.85rem !important;
-        }
-        div[data-testid="stRadio"] > div[role="radiogroup"] > label {
-            background-color: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 0.65rem !important;
-            padding: 0.65rem 1.15rem !important;
-            margin: 0 !important;
-            cursor: pointer !important;
-            transition: all 0.15s ease !important;
-            min-height: 44px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-        }
-        div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
-            border-color: #2563eb !important;
-            background-color: #eff6ff !important;
-        }
-        div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
-            background-color: #2563eb !important;
-            border-color: #1d4ed8 !important;
-            box-shadow: 0 3px 8px rgba(37, 99, 235, 0.28) !important;
-        }
-        div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
-            color: #ffffff !important;
-            font-weight: 800 !important;
-        }
-        div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
-            font-size: 0.95rem !important;
-            font-weight: 700 !important;
-            color: #334155 !important;
-            margin: 0 !important;
         }
 
         /* Header Azul Principal */
         .esus-header {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: #ffffff;
-            padding: 1.15rem 1.75rem;
-            border-radius: 1rem;
+            padding: 1.15rem 1.75rem 0.95rem 1.75rem;
+            border-radius: 1rem 1rem 0.5rem 0.5rem;
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0;
         }
         .esus-header-title {
             display: flex;
@@ -103,8 +61,8 @@ st.markdown(
             margin: 0;
         }
         .esus-status-pill {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.28);
             padding: 0.45rem 1rem;
             border-radius: 9999px;
             font-size: 0.85rem;
@@ -112,6 +70,89 @@ st.markdown(
             display: inline-flex;
             align-items: center;
             gap: 0.45rem;
+        }
+
+        /* Barra de Abas Superiores (Estilo Nav-Tabs Grandes) */
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.4rem !important;
+            background-color: #1e40af !important;
+            padding: 0.55rem 0.85rem 0 0.85rem !important;
+            border-radius: 0 0 0.9rem 0.9rem !important;
+            box-shadow: 0 4px 10px rgba(30, 64, 175, 0.16) !important;
+            margin-bottom: 1rem !important;
+            align-items: flex-end !important;
+        }
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+            background-color: rgba(255, 255, 255, 0.12) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            border-bottom: none !important;
+            border-radius: 0.65rem 0.65rem 0 0 !important;
+            padding: 0.72rem 1.25rem !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            transition: all 0.16s ease !important;
+            min-height: 46px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
+            background-color: rgba(255, 255, 255, 0.24) !important;
+            transform: translateY(-1px);
+        }
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
+            font-size: 0.93rem !important;
+            font-weight: 700 !important;
+            color: #e0e7ff !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
+        }
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
+            background-color: #ffffff !important;
+            border-color: #ffffff !important;
+            box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.12) !important;
+            transform: translateY(0) !important;
+        }
+        .top-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
+            color: #1d4ed8 !important;
+            font-weight: 800 !important;
+        }
+
+        /* Sub-abas da Tabela Nominal (pílulas limpas) */
+        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.45rem !important;
+            background-color: #f1f5f9 !important;
+            padding: 0.4rem !important;
+            border-radius: 0.7rem !important;
+            margin-bottom: 0.85rem !important;
+        }
+        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 0.5rem !important;
+            padding: 0.45rem 0.9rem !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            min-height: 36px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
+            font-size: 0.84rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            margin: 0 !important;
+        }
+        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
+            background-color: #2563eb !important;
+            border-color: #1d4ed8 !important;
+        }
+        .sub-nav-wrapper div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
+            color: #ffffff !important;
+            font-weight: 700 !important;
         }
 
         /* Glass Card */
@@ -674,7 +715,6 @@ CONDITIONS = {
 # FUNÇÕES DE LEITURA, NORMALIZAÇÃO E CÁLCULO
 # ==============================================================================
 def compact_html(html_str: str) -> str:
-    """Remove quebras de linha e espaços excessivos para evitar que o Markdown interprete código."""
     return re.sub(r">\s+<", "><", html_str).strip()
 
 
@@ -997,7 +1037,27 @@ if "csv_store" not in st.session_state:
 cond_keys = list(CONDITIONS.keys())
 cond_labels = [CONDITIONS[k]["label"] for k in cond_keys]
 
-# Abas superiores grandes e fáceis de clicar
+# Pré-verifica status para exibir no header
+preview_cond = cond_keys[0]
+if "active_cond_key" in st.session_state:
+    preview_cond = st.session_state["active_cond_key"]
+
+has_any_data = st.session_state["csv_store"].get(preview_cond) is not None
+status_text = "Dados Em Memória" if has_any_data else "Dados Carregados"
+status_icon = '<i class="fa-solid fa-check-circle" style="color: #86efac;"></i>'
+
+st.markdown(
+    compact_html(
+        f'<div class="esus-header">'
+        f'<div class="esus-header-title"><i class="fa-solid fa-file-medical"></i><span>Painel de Monitoramento e-SUS APS</span></div>'
+        f'<div class="esus-status-pill">{status_icon}<span>{status_text}</span></div>'
+        f'</div>'
+    ),
+    unsafe_allow_html=True,
+)
+
+# Abas superiores estilizadas
+st.markdown('<div class="top-nav-wrapper">', unsafe_allow_html=True)
 selected_label = st.radio(
     "Linha de Cuidado",
     options=cond_labels,
@@ -1005,37 +1065,21 @@ selected_label = st.radio(
     horizontal=True,
     label_visibility="collapsed",
 )
+st.markdown("</div>", unsafe_allow_html=True)
+
 selected_idx = cond_labels.index(selected_label)
 current_cond = cond_keys[selected_idx]
+st.session_state["active_cond_key"] = current_cond
 cond_cfg = CONDITIONS[current_cond]
 
 csv_text = st.session_state["csv_store"].get(current_cond)
-data_source_status = "Dados Em Memória"
-
 if csv_text is None:
     try:
         with open(cond_cfg["file"], "rb") as f:
             csv_text = decode_csv_bytes(f.read())
             st.session_state["csv_store"][current_cond] = csv_text
-            data_source_status = "Dados Carregados"
     except FileNotFoundError:
-        data_source_status = "Selecione um arquivo"
-
-status_icon = (
-    '<i class="fa-solid fa-check-circle" style="color: #86efac;"></i>'
-    if csv_text
-    else '<i class="fa-solid fa-circle-exclamation" style="color: #fde047;"></i>'
-)
-
-st.markdown(
-    compact_html(
-        f'<div class="esus-header">'
-        f'<div class="esus-header-title"><i class="fa-solid fa-file-medical"></i><span>Painel de Monitoramento e-SUS APS</span></div>'
-        f'<div class="esus-status-pill">{status_icon}<span>{data_source_status}</span></div>'
-        f'</div>'
-    ),
-    unsafe_allow_html=True,
-)
+        csv_text = None
 
 with st.expander("📂 Importar ou substituir relatório CSV do e-SUS PEC", expanded=(csv_text is None)):
     uploaded_file = st.file_uploader(
@@ -1298,6 +1342,7 @@ tab_options = ["Matriz Geral"] + [
     if not m.get("hidePendingTab")
 ]
 
+st.markdown('<div class="sub-nav-wrapper">', unsafe_allow_html=True)
 selected_tab = st.radio(
     "Aba Nominal",
     options=tab_options,
@@ -1306,6 +1351,7 @@ selected_tab = st.radio(
     key=f"nom_tab_{current_cond}",
     label_visibility="collapsed",
 )
+st.markdown("</div>", unsafe_allow_html=True)
 
 f_col1, f_col2, f_col3 = st.columns([1.2, 1.2, 2])
 micros_list = sorted(
