@@ -398,6 +398,13 @@ CONDITIONS = {
             },
         ],
     },
+    "duplicados": {
+        "label": "Cadastros Duplicados",
+        "full_label": "Cadastros Duplicados",
+        "file": "exportar-cadastros-duplicados_2026-11-23-09-48.csv",
+        "kind": "duplicados",
+        "metrics": [],
+    },
     "infantil": {
         "label": "C2 - Desenvolvimento Infantil",
         "full_label": "C2 - Desenvolvimento Infantil",
@@ -1066,6 +1073,155 @@ def analyze_vinculados_data(csv_text: str) -> dict:
 
 
 @st.cache_data(show_spinner=False)
+def analyze_duplicados_data(csv_text: str) -> dict:
+    rows = parse_rows(csv_text)
+    if not rows:
+        return {}
+
+    header_idx = -1
+    for i in range(min(len(rows), 45)):
+        if not rows[i]:
+            continue
+        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
+        if ("nome" in row_norm or "cidadao" in row_norm) and (
+            "duplic" in row_norm or "nascimento" in row_norm or "mae" in row_norm or "cpf" in row_norm or "cns" in row_norm
+        ):
+            header_idx = i
+            break
+
+    if header_idx == -1 or header_idx >= len(rows):
+        return {}
+
+    fields = [sanitize_text(f) for f in rows[header_idx]]
+    data_rows = rows[header_idx + 1 :]
+
+    def find_col(candidates: list[str], exclude: list[str] | None = None) -> int:
+        exclude = exclude or []
+        for idx, f in enumerate(fields):
+            norm = strip_accents(f.lower()).strip()
+            if any(ex in norm for ex in exclude):
+                continue
+            if norm in candidates:
+                return idx
+        for idx, f in enumerate(fields):
+            norm = strip_accents(f.lower()).strip()
+            if any(ex in norm for ex in exclude):
+                continue
+            for cand in candidates:
+                if cand in norm:
+                    return idx
+        return -1
+
+    col_grupo = find_col(["grupo", "id grupo", "codigo grupo", "codigo", "registro"])
+    col_motivo = find_col(["criterio", "motivo", "tipo", "duplicidade", "justificativa", "regra", "inconsistencia"])
+    col_nome = find_col(["nome", "nome do cidadao", "cidadao", "paciente"], exclude=["mae", "pai", "equipe", "unidade"])
+    col_mae = find_col(["nome da mae", "mae", "filiacao"])
+    col_cpf = find_col(["cpf"], exclude=["cns"])
+    col_cns = find_col(["cns"], exclude=["cpf"])
+    col_cpf_cns = find_col(["cpf/cns", "documento"])
+    col_nasc = find_col(["data de nascimento", "nascimento", "dt nascimento"])
+    col_sexo = find_col(["sexo"])
+    col_equipe = find_col(["nome equipe", "equipe", "ine"])
+    col_micro = find_col(["microarea", "micro"])
+    col_end = find_col(["endereco", "logradouro"])
+    col_tel = find_col(["telefone", "celular", "contato"])
+    col_atual = find_col(["ultima atualizacao", "atualizacao", "data cadastro", "cadastro"])
+
+    records = []
+    motivos_set = set()
+    micros_set = set()
+    equipes_set = set()
+
+    for idx_r, row in enumerate(data_rows, start=1):
+        if not row or len(row) < 2:
+            continue
+
+        def get_val(c_idx: int, default: str = "-") -> str:
+            if 0 <= c_idx < len(row):
+                v = sanitize_text(row[c_idx])
+                return v if v else default
+            return default
+
+        nome = get_val(col_nome, "")
+        if not nome:
+            # Fallback caso o CSV tenha colunas genéricas sem cabeçalho padrão
+            non_empty = [sanitize_text(c) for c in row if sanitize_text(c)]
+            if not non_empty:
+                continue
+            nome = non_empty[0]
+
+        if col_cpf != -1 or col_cns != -1:
+            raw_cpf = get_val(col_cpf, "-")
+            raw_cns = get_val(col_cns, "-")
+            cpf_val, _ = split_cpf_cns(raw_cpf) if raw_cpf != "-" else ("-", "-")
+            if cpf_val == "-" and raw_cpf != "-":
+                cpf_val = raw_cpf
+            cns_val = re.sub(r"\D", "", raw_cns) if raw_cns != "-" else "-"
+            if not cns_val:
+                cns_val = raw_cns
+        else:
+            cpf_val, cns_val = split_cpf_cns(get_val(col_cpf_cns, "-"))
+
+        grupo = get_val(col_grupo, "-")
+        motivo = get_val(col_motivo, "Possível Duplicidade")
+        mae = get_val(col_mae, "-")
+        nasc = get_val(col_nasc, "-")
+        sexo = get_val(col_sexo, "-")
+        equipe = get_val(col_equipe, "-")
+        micro = get_val(col_micro, "Não informada")
+        endereco = get_val(col_end, "-")
+        telefone = get_val(col_tel, "-")
+        atualizacao = get_val(col_atual, "-")
+
+        motivos_set.add(motivo)
+        micros_set.add(micro)
+        if equipe != "-":
+            equipes_set.add(equipe)
+
+        rec = {
+            "Nome do(a) Paciente": nome,
+            "CPF": cpf_val,
+            "CNS": cns_val,
+            "Nascimento": nasc,
+            "Sexo": sexo,
+            "Nome da Mãe": mae,
+            "Microárea": micro,
+            "Endereço": endereco,
+        }
+        if col_grupo != -1:
+            rec["Grupo"] = grupo
+        if col_motivo != -1:
+            rec["Critério / Motivo"] = motivo
+        if col_equipe != -1:
+            rec["Equipe"] = equipe
+        if col_tel != -1:
+            rec["Telefone"] = telefone
+        if col_atual != -1:
+            rec["Última Atualização"] = atualizacao
+
+        rec["_motivo"] = motivo
+        rec["_micro"] = micro
+        rec["_equipe"] = equipe
+        rec["_sexo"] = sexo
+        records.append(rec)
+
+    return {
+        "total": len(records),
+        "records": records,
+        "motivos": sorted(motivos_set),
+        "microareas": sorted(
+            micros_set,
+            key=lambda x: (
+                x == "Não informada",
+                int(re.search(r"\d+", x).group()) if re.search(r"\d+", x) else 999,
+                x,
+            ),
+        ),
+        "equipes": sorted(equipes_set),
+    }
+
+
+@st.cache_data(show_spinner=False)
 def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     rows = parse_rows(csv_text)
     if not rows:
@@ -1656,6 +1812,131 @@ if cond_cfg["kind"] == "vinculados":
             use_container_width=True,
             hide_index=True,
             height=460,
+            column_config={
+                "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
+            },
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(
+        compact_html('<div class="esus-footer">Gerado a partir dos dados do e-SUS PEC • by @argsite</div>'),
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
+# ==============================================================================
+# ABA 3: CADASTROS DUPLICADOS (APENAS LISTA NOMINAL COM FILTROS)
+# ==============================================================================
+if cond_cfg["kind"] == "duplicados":
+    d_stats = analyze_duplicados_data(csv_text)
+    if not d_stats or d_stats["total"] == 0:
+        st.error("Não foi possível identificar cabeçalhos ou registros no relatório de cadastros duplicados.")
+        st.stop()
+
+    total_d = d_stats["total"]
+
+    st.markdown(
+        compact_html(
+            '<div class="glass-card" style="padding-bottom: 0.75rem;">'
+            '<div class="section-title" style="margin-bottom: 0.75rem;"><i class="fa-solid fa-clone" style="color: #2563eb;"></i><span>Lista Nominal de Possíveis Cadastros Duplicados</span></div>'
+        ),
+        unsafe_allow_html=True,
+    )
+
+    has_motivos = len(d_stats["motivos"]) > 1
+    has_equipes = len(d_stats["equipes"]) > 1
+
+    if has_motivos and has_equipes:
+        fc1, fc2, fc3, fc4 = st.columns([1.3, 1.1, 1.1, 2.2])
+        sel_motivo_d = fc1.selectbox("Critério", ["Todos os Critérios"] + d_stats["motivos"], key="d_motivo", label_visibility="collapsed")
+        sel_equipe_d = fc2.selectbox("Equipe", ["Todas as Equipes"] + d_stats["equipes"], key="d_equipe", label_visibility="collapsed")
+        sel_micro_d = fc3.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
+        search_d = fc4.text_input(
+            "Buscar",
+            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
+            key="d_search",
+            label_visibility="collapsed",
+        ).strip().lower()
+    elif has_motivos:
+        fc1, fc2, fc3 = st.columns([1.3, 1.1, 2.4])
+        sel_motivo_d = fc1.selectbox("Critério", ["Todos os Critérios"] + d_stats["motivos"], key="d_motivo", label_visibility="collapsed")
+        sel_equipe_d = "Todas as Equipes"
+        sel_micro_d = fc2.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
+        search_d = fc3.text_input(
+            "Buscar",
+            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
+            key="d_search",
+            label_visibility="collapsed",
+        ).strip().lower()
+    else:
+        fc1, fc2, fc3 = st.columns([1.2, 1.1, 2.5])
+        sel_motivo_d = "Todos os Critérios"
+        sel_equipe_d = "Todas as Equipes"
+        sel_micro_d = fc1.selectbox("Microárea", ["Todas as Microáreas"] + d_stats["microareas"], key="d_micro", label_visibility="collapsed")
+        sel_sexo_d = fc2.selectbox("Sexo", ["Todos os Sexos", "Feminino", "Masculino"], key="d_sexo", label_visibility="collapsed")
+        search_d = fc3.text_input(
+            "Buscar",
+            placeholder="🔍 Buscar nome, mãe, CPF, CNS, nascimento ou endereço...",
+            key="d_search",
+            label_visibility="collapsed",
+        ).strip().lower()
+
+    if has_motivos:
+        sel_sexo_d = "Todos os Sexos"
+
+    rows_d = []
+    for r in d_stats["records"]:
+        if sel_motivo_d != "Todos os Critérios" and r["_motivo"] != sel_motivo_d:
+            continue
+        if sel_equipe_d != "Todas as Equipes" and r["_equipe"] != sel_equipe_d:
+            continue
+        if sel_micro_d != "Todas as Microáreas" and r["_micro"] != sel_micro_d:
+            continue
+        if sel_sexo_d != "Todos os Sexos" and not r["_sexo"].lower().startswith(sel_sexo_d[0].lower()):
+            continue
+
+        public_row = {k: v for k, v in r.items() if not k.startswith("_")}
+        if search_d:
+            haystack = " ".join(str(v).lower() for v in public_row.values())
+            if search_d not in haystack:
+                continue
+
+        rows_d.append(public_row)
+
+    df_d = pd.DataFrame(rows_d)
+    d_info, d_csv, d_xlsx = st.columns([3.5, 1, 1])
+    d_info.markdown(
+        compact_html(
+            f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
+            f"<i class='fa-solid fa-clone' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_d)}</strong> de {total_d} possíveis cadastros duplicados.</p>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+    d_csv.download_button(
+        "📄 Exportar CSV",
+        data=df_d.to_csv(index=False, sep=";").encode("utf-8-sig"),
+        file_name="Cadastros_Duplicados.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    d_xlsx.download_button(
+        "📊 Exportar XLSX",
+        data=to_excel_bytes(df_d, sheet_name="Duplicados"),
+        file_name="Cadastros_Duplicados.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+    if df_d.empty:
+        st.info("Nenhum cadastro duplicado encontrado com estes filtros.")
+    else:
+        st.dataframe(
+            df_d,
+            use_container_width=True,
+            hide_index=True,
+            height=540,
             column_config={
                 "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
             },
