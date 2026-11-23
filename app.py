@@ -966,7 +966,6 @@ if "csv_store" not in st.session_state:
 cond_keys = list(CONDITIONS.keys())
 cond_labels = [CONDITIONS[k]["label"] for k in cond_keys]
 
-# Navegação superior
 selected_idx = st.segmented_control(
     "Linha de Cuidado",
     options=list(range(len(cond_keys))),
@@ -977,7 +976,6 @@ selected_idx = st.segmented_control(
 current_cond = cond_keys[selected_idx if selected_idx is not None else 0]
 cond_cfg = CONDITIONS[current_cond]
 
-# Tenta carregar arquivo enviado na sessão ou arquivo local da pasta
 csv_text = st.session_state["csv_store"].get(current_cond)
 data_source_status = "Dados Em Memória"
 
@@ -990,7 +988,6 @@ if csv_text is None:
     except FileNotFoundError:
         data_source_status = "Selecione um arquivo"
 
-# Header azul idêntico ao original
 status_icon = (
     '<i class="fa-solid fa-check-circle" style="color: #86efac;"></i>'
     if csv_text
@@ -1013,7 +1010,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Área de upload discreta (permite substituir o CSV a qualquer momento)
 with st.expander("📂 Importar ou substituir relatório CSV do e-SUS PEC", expanded=(csv_text is None)):
     uploaded_file = st.file_uploader(
         f"Selecione o arquivo CSV correspondente a {cond_cfg['full_label']}",
@@ -1394,7 +1390,6 @@ for p in stats["patients"]:
 df_display = pd.DataFrame(filtered_display)
 df_export = pd.DataFrame(filtered_export)
 
-# Barra de contagem + botões de exportação alinhados
 info_col, btn_csv_col, btn_xlsx_col = st.columns([3.5, 1, 1])
 
 if is_geral_tab:
@@ -1411,9 +1406,10 @@ else:
         unsafe_allow_html=True,
     )
 
+pendencia_suffix = f"Pendencia_{target_metric['id']}" if target_metric else "Pendencia"
 base_filename = (
     f"Acompanhamento_{re.sub(r'[^a-zA-Z0-9]', '_', cond_cfg['full_label'])}_"
-    f"{'Matriz_Geral' if is_geral_tab else f'Pendencia_{target_metric[\"id\"]}'}"
+    f"{'Matriz_Geral' if is_geral_tab else pendencia_suffix}"
 )
 
 btn_csv_col.download_button(
