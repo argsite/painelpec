@@ -742,7 +742,6 @@ def sanitize_text(val) -> str:
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return ""
     s = str(val)
-    # Converte caracteres fullwidth deslocados (0xFF00 + byte Latin-1)
     converted = []
     for ch in s:
         code = ord(ch)
@@ -798,6 +797,19 @@ def extract_age_years(idade_raw: str, current_year: int) -> int | None:
     if m_num:
         return int(m_num.group(1))
     return None
+
+
+def is_missing_cpf(cpf_cns_val: str) -> bool:
+    """Retorna True se o campo estiver vazio/traço ou contiver apenas CNS (15 dígitos), sem CPF (11 dígitos)."""
+    if not cpf_cns_val or cpf_cns_val == "-":
+        return True
+    digits = re.sub(r"\D", "", cpf_cns_val)
+    if not digits:
+        return True
+    # No e-SUS PEC, CPF tem 11 dígitos e CNS tem 15 dígitos
+    if len(digits) == 15:
+        return True
+    return len(digits) != 11
 
 
 def has_date_or_recent(val: str, max_days: int | None) -> bool:
@@ -878,6 +890,7 @@ def analyze_vinculados_data(csv_text: str) -> dict:
     microareas: dict[str, int] = {}
     com_telefone = 0
     sem_endereco = 0
+    sem_cpf = 0
     patients = []
     current_year = datetime.now().year
 
@@ -935,6 +948,10 @@ def analyze_vinculados_data(csv_text: str) -> dict:
         if no_addr:
             sem_endereco += 1
 
+        no_cpf = is_missing_cpf(cpf_cns)
+        if no_cpf:
+            sem_cpf += 1
+
         patients.append({
             "Nome do(a) Paciente": nome,
             "CPF/CNS": cpf_cns,
@@ -950,12 +967,14 @@ def analyze_vinculados_data(csv_text: str) -> dict:
             "_faixa": faixa_str,
             "_sem_endereco": no_addr,
             "_sem_telefone": not has_phone,
+            "_sem_cpf": no_cpf,
         })
 
     return {
         "total": total,
         "com_telefone": com_telefone,
         "sem_endereco": sem_endereco,
+        "sem_cpf": sem_cpf,
         "microareas": microareas,
         "sexo": sexo_counts,
         "faixa_etaria": faixa_counts,
@@ -1383,7 +1402,7 @@ if cond_cfg["kind"] == "vinculados":
     total_v = v_stats["total"]
     pct_fone = round((v_stats["com_telefone"] / total_v) * 100) if total_v else 0
     pct_sem_end = round((v_stats["sem_endereco"] / total_v) * 100) if total_v else 0
-    pct_fem = round((v_stats["sexo"]["Feminino"] / total_v) * 100) if total_v else 0
+    pct_sem_cpf = round((v_stats["sem_cpf"] / total_v) * 100) if total_v else 0
 
     k1, k2, k3, k4 = st.columns(4)
     with k1:
@@ -1409,6 +1428,18 @@ if cond_cfg["kind"] == "vinculados":
         )
     with k3:
         render_kpi_card(
+            title="Sem CPF no Cadastro",
+            value_str=str(v_stats["sem_cpf"]),
+            border_hex="#f59e0b",
+            icon_cls="fa-id-card",
+            icon_hex="#d97706",
+            icon_bg="#fef3c7",
+            sub_html=f'<span class="kpi-pct" style="color: #f59e0b;">({pct_sem_cpf}%)</span>',
+            bar_pct=pct_sem_cpf,
+            bar_hex="#f59e0b",
+        )
+    with k4:
+        render_kpi_card(
             title="Sem Endereço no Cadastro",
             value_str=str(v_stats["sem_endereco"]),
             border_hex="#f43f5e",
@@ -1418,18 +1449,6 @@ if cond_cfg["kind"] == "vinculados":
             sub_html=f'<span class="kpi-pct" style="color: #f43f5e;">({pct_sem_end}%)</span>',
             bar_pct=pct_sem_end,
             bar_hex="#f43f5e",
-        )
-    with k4:
-        render_kpi_card(
-            title="Sexo Feminino",
-            value_str=str(v_stats["sexo"]["Feminino"]),
-            border_hex="#ec4899",
-            icon_cls="fa-venus",
-            icon_hex="#db2777",
-            icon_bg="#fce7f3",
-            sub_html=f'<span class="kpi-pct" style="color: #ec4899;">({pct_fem}%)</span>',
-            bar_pct=pct_fem,
-            bar_hex="#ec4899",
         )
 
     render_distribution_charts(v_stats, hide_sex=False)
@@ -1445,7 +1464,12 @@ if cond_cfg["kind"] == "vinculados":
     st.markdown('<div class="sub-nav-wrapper">', unsafe_allow_html=True)
     selected_v_tab = st.radio(
         "Filtro Rápido Vinculados",
-        options=["Todos os Vinculados", "Pendência: Sem Endereço", "Pendência: Sem Telefone"],
+        options=[
+            "Todos os Vinculados",
+            "Pendência: Sem CPF",
+            "Pendência: Sem Endereço",
+            "Pendência: Sem Telefone",
+        ],
         index=0,
         horizontal=True,
         key="v_tab_filter",
@@ -1482,6 +1506,8 @@ if cond_cfg["kind"] == "vinculados":
 
     rows_v = []
     for p in v_stats["patients"]:
+        if selected_v_tab == "Pendência: Sem CPF" and not p["_sem_cpf"]:
+            continue
         if selected_v_tab == "Pendência: Sem Endereço" and not p["_sem_endereco"]:
             continue
         if selected_v_tab == "Pendência: Sem Telefone" and not p["_sem_telefone"]:
@@ -1516,7 +1542,7 @@ if cond_cfg["kind"] == "vinculados":
     c_info.markdown(
         compact_html(
             f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
-            f"<i class='fa-solid fa-users' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_v)}</strong> de {total_v} cidadãos vinculados.</p>"
+            f"<i class='fa-solid fa-users' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_v)}</strong> de {total_v} cidadãos vinculados ({selected_v_tab}).</p>"
         ),
         unsafe_allow_html=True,
     )
