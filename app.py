@@ -520,8 +520,9 @@ CONDITIONS = {
                 "bpDesc": "Ter registro dos testes rápidos ou exames para sífilis, HIV e hepatites B e C no 1º trimestre.",
                 "points": 9,
                 "hidden": True,
-                "forceCols": [50, 51, 52, 53],
+                "forceCols": [51, 52, 53, 54],
                 "requireAllSim": True,
+                "strictSim": True,
             },
             {
                 "id": "testes_3tri",
@@ -1144,9 +1145,13 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     if not rows:
         return {}
 
-    # Linha 25 em base-1 corresponde ao índice 24
-    header_idx = 24
-    if condition_key != "mulher":
+    # Linha 25 (índice 24) para a maioria dos relatórios; Linha 26 (índice 25) para Gestantes
+    if condition_key == "gestantes":
+        header_idx = 25
+    elif condition_key == "mulher":
+        header_idx = 24
+    else:
+        header_idx = 24
         for i in range(min(len(rows), 50)):
             if not rows[i]:
                 continue
@@ -1284,10 +1289,11 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
 
             if m.get("requireAllSim") and m.get("forceCols"):
                 has_met = True
+                valid_vals = ("SIM",) if m.get("strictSim") else ("SIM", "NAO_SE_APLICA", "NÃO SE APLICA")
                 for c in m["forceCols"]:
                     if len(row) > c:
                         v = sanitize_text(row[c]).upper()
-                        if v not in ("SIM", "NAO_SE_APLICA", "NÃO SE APLICA"):
+                        if v not in valid_vals:
                             has_met = False
                             break
                     else:
