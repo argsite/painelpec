@@ -15,17 +15,16 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# ESTILO VISUAL (Réplica fiel do Tailwind / Glass-Card do index.html original)
+# ESTILO VISUAL
 # ==============================================================================
 st.markdown(
     """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Oculta barra padrão do Streamlit para destacar o header customizado */
         header[data-testid="stHeader"] {
             background: transparent;
-            height: 0.5rem;
+            height: 0.4rem;
         }
         .stApp {
             background-color: #f8fafc;
@@ -33,9 +32,51 @@ st.markdown(
             color: #1e293b;
         }
         .block-container {
-            padding-top: 1.2rem !important;
+            padding-top: 1rem !important;
             padding-bottom: 2rem !important;
             max-width: 96% !important;
+        }
+
+        /* Abas superiores grandes e fáceis de clicar (st.radio horizontal) */
+        div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+            background-color: #e2e8f0 !important;
+            padding: 0.45rem !important;
+            border-radius: 0.85rem !important;
+            margin-bottom: 0.85rem !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 0.65rem !important;
+            padding: 0.65rem 1.15rem !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
+            border-color: #2563eb !important;
+            background-color: #eff6ff !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
+            background-color: #2563eb !important;
+            border-color: #1d4ed8 !important;
+            box-shadow: 0 3px 8px rgba(37, 99, 235, 0.28) !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] p {
+            color: #ffffff !important;
+            font-weight: 800 !important;
+        }
+        div[data-testid="stRadio"] > div[role="radiogroup"] > label p {
+            font-size: 0.95rem !important;
+            font-weight: 700 !important;
+            color: #334155 !important;
+            margin: 0 !important;
         }
 
         /* Header Azul Principal */
@@ -64,9 +105,9 @@ st.markdown(
         .esus-status-pill {
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 0.4rem 0.9rem;
+            padding: 0.45rem 1rem;
             border-radius: 9999px;
-            font-size: 0.82rem;
+            font-size: 0.85rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
@@ -75,21 +116,18 @@ st.markdown(
 
         /* Glass Card */
         .glass-card {
-            background: rgba(255, 255, 255, 0.97);
+            background: #ffffff;
             border-radius: 1rem;
             padding: 1.35rem 1.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
             border: 1px solid #e2e8f0;
             margin-bottom: 1rem;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
-        .glass-card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06);
         }
         .kpi-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 0.5rem;
         }
         .kpi-label {
             font-size: 0.76rem;
@@ -117,11 +155,10 @@ st.markdown(
             font-weight: 700;
         }
         .kpi-badge {
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             font-weight: 700;
-            padding: 0.2rem 0.55rem;
+            padding: 0.2rem 0.6rem;
             border-radius: 0.375rem;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
         .kpi-icon-circle {
             width: 3.25rem;
@@ -144,7 +181,6 @@ st.markdown(
         .kpi-progress-fill {
             height: 100%;
             border-radius: 9999px;
-            transition: width 0.6s ease;
         }
 
         /* Títulos de Seção */
@@ -178,7 +214,6 @@ st.markdown(
         }
         .bp-table tbody tr {
             border-bottom: 1px solid #f1f5f9;
-            transition: background-color 0.15s;
         }
         .bp-table tbody tr:hover {
             background-color: #f8fafc;
@@ -197,25 +232,18 @@ st.markdown(
             margin-left: 0.45rem;
         }
 
-        /* Estilização do Segmented Control / Botões */
-        div[data-baseweb="segmented-control"] {
-            background-color: #e2e8f0 !important;
-            padding: 0.25rem !important;
-            border-radius: 0.75rem !important;
-        }
         div[data-testid="stDownloadButton"] button {
             background-color: #059669 !important;
             color: white !important;
             font-weight: 700 !important;
             border: none !important;
             border-radius: 0.5rem !important;
-            padding: 0.45rem 1rem !important;
+            padding: 0.5rem 1rem !important;
         }
         div[data-testid="stDownloadButton"] button:hover {
             background-color: #047857 !important;
         }
 
-        /* Footer */
         .esus-footer {
             background-color: #1e293b;
             color: #94a3b8;
@@ -643,8 +671,13 @@ CONDITIONS = {
 
 
 # ==============================================================================
-# FUNÇÕES DE LEITURA, NORMALIZAÇÃO E CÁLCULO (Com Cache em Memória)
+# FUNÇÕES DE LEITURA, NORMALIZAÇÃO E CÁLCULO
 # ==============================================================================
+def compact_html(html_str: str) -> str:
+    """Remove quebras de linha e espaços excessivos para evitar que o Markdown interprete código."""
+    return re.sub(r">\s+<", "><", html_str).strip()
+
+
 def strip_accents(text: str) -> str:
     return "".join(
         c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn"
@@ -935,26 +968,24 @@ def render_kpi_card(
         if bar_pct is not None
         else '<div style="height: 0.5rem; margin-top: 1rem;"></div>'
     )
-    st.markdown(
-        f"""
-        <div class="glass-card" style="border-left: 4px solid {border_hex};">
-            <div class="kpi-top">
-                <div>
-                    <p class="kpi-label">{title}</p>
-                    <div class="kpi-value-row">
-                        <h2 class="kpi-value">{value_str}</h2>
-                        {sub_html}
-                    </div>
-                </div>
-                <div class="kpi-icon-circle" style="background-color: {icon_bg}; color: {icon_hex};">
-                    <i class="fa-solid {icon_cls}"></i>
-                </div>
-            </div>
-            {progress_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    html = (
+        f'<div class="glass-card" style="border-left: 4px solid {border_hex};">'
+        f'<div class="kpi-top">'
+        f'<div>'
+        f'<p class="kpi-label">{title}</p>'
+        f'<div class="kpi-value-row">'
+        f'<h2 class="kpi-value">{value_str}</h2>'
+        f'{sub_html}'
+        f'</div>'
+        f'</div>'
+        f'<div class="kpi-icon-circle" style="background-color: {icon_bg}; color: {icon_hex};">'
+        f'<i class="fa-solid {icon_cls}"></i>'
+        f'</div>'
+        f'</div>'
+        f'{progress_html}'
+        f'</div>'
     )
+    st.markdown(compact_html(html), unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -966,14 +997,16 @@ if "csv_store" not in st.session_state:
 cond_keys = list(CONDITIONS.keys())
 cond_labels = [CONDITIONS[k]["label"] for k in cond_keys]
 
-selected_idx = st.segmented_control(
+# Abas superiores grandes e fáceis de clicar
+selected_label = st.radio(
     "Linha de Cuidado",
-    options=list(range(len(cond_keys))),
-    format_func=lambda i: cond_labels[i],
-    default=0,
+    options=cond_labels,
+    index=0,
+    horizontal=True,
     label_visibility="collapsed",
 )
-current_cond = cond_keys[selected_idx if selected_idx is not None else 0]
+selected_idx = cond_labels.index(selected_label)
+current_cond = cond_keys[selected_idx]
 cond_cfg = CONDITIONS[current_cond]
 
 csv_text = st.session_state["csv_store"].get(current_cond)
@@ -995,18 +1028,12 @@ status_icon = (
 )
 
 st.markdown(
-    f"""
-    <div class="esus-header">
-        <div class="esus-header-title">
-            <i class="fa-solid fa-file-medical"></i>
-            <span>Painel de Monitoramento e-SUS APS</span>
-        </div>
-        <div class="esus-status-pill">
-            {status_icon}
-            <span>{data_source_status}</span>
-        </div>
-    </div>
-    """,
+    compact_html(
+        f'<div class="esus-header">'
+        f'<div class="esus-header-title"><i class="fa-solid fa-file-medical"></i><span>Painel de Monitoramento e-SUS APS</span></div>'
+        f'<div class="esus-status-pill">{status_icon}<span>{data_source_status}</span></div>'
+        f'</div>'
+    ),
     unsafe_allow_html=True,
 )
 
@@ -1024,12 +1051,12 @@ with st.expander("📂 Importar ou substituir relatório CSV do e-SUS PEC", expa
 
 if not csv_text:
     st.markdown(
-        """
-        <div style="background-color: #fefce8; border-left: 4px solid #facc15; padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; color: #854d0e;">
-            <strong><i class="fa-solid fa-triangle-exclamation"></i> Importar relatório do PEC</strong><br>
-            <span style="font-size: 0.9rem;">Carregue o arquivo CSV correspondente acima para gerar a análise desta linha de cuidado.</span>
-        </div>
-        """,
+        compact_html(
+            '<div style="background-color: #fefce8; border-left: 4px solid #facc15; padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; color: #854d0e;">'
+            '<strong><i class="fa-solid fa-triangle-exclamation"></i> Importar relatório do PEC</strong><br>'
+            '<span style="font-size: 0.9rem;">Carregue o arquivo CSV correspondente acima para gerar a análise desta linha de cuidado.</span>'
+            '</div>'
+        ),
         unsafe_allow_html=True,
     )
     st.stop()
@@ -1120,52 +1147,39 @@ if current_cond != "geral":
         cnt = stats["metric_counts"].get(m["id"], 0)
         pct = round((cnt / total_patients) * 100) if total_patients > 0 else 0
         not_done = total_patients - cnt
+        m_title = m.get("shortName") or m.get("name")
         rows_html.append(
-            f"""
-            <tr>
-                <td>
-                    <div style="font-weight: 700; color: #1e293b;">
-                        {m.get("shortName") or m.get("name")}
-                        <span class="pts-tag">{m.get("points", 0)} pts</span>
-                    </div>
-                    <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">{m["bpDesc"]}</div>
-                </td>
-                <td style="text-align: center; font-weight: 800; color: #334155; width: 6rem;">{pct}%</td>
-                <td style="text-align: center; font-weight: 700; color: #059669; width: 7rem;">{cnt}</td>
-                <td style="text-align: center; font-weight: 700; color: #f43f5e; width: 7rem;">{not_done}</td>
-            </tr>
-            """
+            f'<tr>'
+            f'<td>'
+            f'<div style="font-weight: 700; color: #1e293b;">{m_title}<span class="pts-tag">{m.get("points", 0)} pts</span></div>'
+            f'<div style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">{m["bpDesc"]}</div>'
+            f'</td>'
+            f'<td style="text-align: center; font-weight: 800; color: #334155; width: 6rem;">{pct}%</td>'
+            f'<td style="text-align: center; font-weight: 700; color: #059669; width: 7rem;">{cnt}</td>'
+            f'<td style="text-align: center; font-weight: 700; color: #f43f5e; width: 7rem;">{not_done}</td>'
+            f'</tr>'
         )
 
-    st.markdown(
-        f"""
-        <div class="glass-card">
-            <div class="section-title">
-                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
-                <span>Boas Práticas e Desempenho</span>
-            </div>
-            <div style="overflow-x: auto;">
-                <table class="bp-table">
-                    <thead>
-                        <tr>
-                            <th style="text-align: left;">Descrição da Boa Prática</th>
-                            <th style="text-align: center;">Alcance</th>
-                            <th style="text-align: center;">Realizados</th>
-                            <th style="text-align: center;">Pendentes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {''.join(rows_html)}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    bp_card_html = (
+        f'<div class="glass-card">'
+        f'<div class="section-title"><i class="fa-solid fa-list-check" style="color: #2563eb;"></i><span>Boas Práticas e Desempenho</span></div>'
+        f'<div style="overflow-x: auto;">'
+        f'<table class="bp-table">'
+        f'<thead><tr>'
+        f'<th style="text-align: left;">Descrição da Boa Prática</th>'
+        f'<th style="text-align: center;">Alcance</th>'
+        f'<th style="text-align: center;">Realizados</th>'
+        f'<th style="text-align: center;">Pendentes</th>'
+        f'</tr></thead>'
+        f'<tbody>{"".join(rows_html)}</tbody>'
+        f'</table>'
+        f'</div>'
+        f'</div>'
     )
+    st.markdown(compact_html(bp_card_html), unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. GRÁFICOS MODERNOS (Plotly estilizado idêntico ao Chart.js)
+# 3. GRÁFICOS
 # ==============================================================================
 hide_sex = current_cond in ("gestantes", "mulher")
 chart_cols = st.columns(2 if hide_sex else 3)
@@ -1181,13 +1195,10 @@ plotly_layout_base = dict(
 
 with chart_cols[0]:
     st.markdown(
-        """
-        <div class="glass-card" style="padding-bottom: 0.5rem;">
-            <div class="section-title">
-                <i class="fa-solid fa-chart-bar" style="color: #3b82f6;"></i>
-                <span>Distribuição por Faixa Etária</span>
-            </div>
-        """,
+        compact_html(
+            '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+            '<div class="section-title"><i class="fa-solid fa-chart-bar" style="color: #3b82f6;"></i><span>Distribuição por Faixa Etária</span></div>'
+        ),
         unsafe_allow_html=True,
     )
     fig_idade = go.Figure(
@@ -1211,13 +1222,10 @@ with chart_cols[0]:
 if not hide_sex:
     with chart_cols[1]:
         st.markdown(
-            """
-            <div class="glass-card" style="padding-bottom: 0.5rem;">
-                <div class="section-title">
-                    <i class="fa-solid fa-venus-mars" style="color: #ec4899;"></i>
-                    <span>Distribuição por Sexo</span>
-                </div>
-            """,
+            compact_html(
+                '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+                '<div class="section-title"><i class="fa-solid fa-venus-mars" style="color: #ec4899;"></i><span>Distribuição por Sexo</span></div>'
+            ),
             unsafe_allow_html=True,
         )
         fig_sexo = go.Figure(
@@ -1247,13 +1255,10 @@ if not hide_sex:
 
 with chart_cols[-1]:
     st.markdown(
-        """
-        <div class="glass-card" style="padding-bottom: 0.5rem;">
-            <div class="section-title">
-                <i class="fa-solid fa-map-location-dot" style="color: #10b981;"></i>
-                <span>Pacientes por Microárea</span>
-            </div>
-        """,
+        compact_html(
+            '<div class="glass-card" style="padding-bottom: 0.5rem;">'
+            '<div class="section-title"><i class="fa-solid fa-map-location-dot" style="color: #10b981;"></i><span>Pacientes por Microárea</span></div>'
+        ),
         unsafe_allow_html=True,
     )
     micro_sorted = sorted(stats["microareas"].items(), key=lambda x: x[1], reverse=True)
@@ -1280,13 +1285,10 @@ with chart_cols[-1]:
 # 4. ACOMPANHAMENTO NOMINAL E BUSCA ATIVA
 # ==============================================================================
 st.markdown(
-    """
-    <div class="glass-card" style="padding-bottom: 0.75rem;">
-        <div class="section-title" style="margin-bottom: 0.5rem;">
-            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
-            <span>Acompanhamento Nominal e Busca Ativa</span>
-        </div>
-    """,
+    compact_html(
+        '<div class="glass-card" style="padding-bottom: 0.75rem;">'
+        '<div class="section-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check" style="color: #2563eb;"></i><span>Acompanhamento Nominal e Busca Ativa</span></div>'
+    ),
     unsafe_allow_html=True,
 )
 
@@ -1296,15 +1298,14 @@ tab_options = ["Matriz Geral"] + [
     if not m.get("hidePendingTab")
 ]
 
-selected_tab = st.segmented_control(
+selected_tab = st.radio(
     "Aba Nominal",
     options=tab_options,
-    default="Matriz Geral",
+    index=0,
+    horizontal=True,
     key=f"nom_tab_{current_cond}",
     label_visibility="collapsed",
 )
-if not selected_tab:
-    selected_tab = "Matriz Geral"
 
 f_col1, f_col2, f_col3 = st.columns([1.2, 1.2, 2])
 micros_list = sorted(
@@ -1328,126 +1329,4 @@ sel_faixa = f_col2.selectbox(
     label_visibility="collapsed",
 )
 search_q = (
-    f_col3.text_input(
-        "Buscar",
-        placeholder="🔍 Buscar paciente, nascimento ou endereço...",
-        key=f"search_{current_cond}",
-        label_visibility="collapsed",
-    )
-    .strip()
-    .lower()
-)
-
-is_geral_tab = selected_tab == "Matriz Geral"
-target_metric = None
-if not is_geral_tab:
-    for m in current_metrics:
-        if f"Pendência: {m.get('shortName') or m.get('name')}" == selected_tab:
-            target_metric = m
-            break
-
-filtered_display = []
-filtered_export = []
-
-for p in stats["patients"]:
-    if not is_geral_tab and target_metric is not None:
-        if p["_metrics"].get(target_metric["id"]):
-            continue
-    if sel_micro != "Todas as Microáreas" and p["Microárea"] != sel_micro:
-        continue
-    if sel_faixa != "Todas as Idades" and p["_faixa"] != sel_faixa:
-        continue
-    if search_q and not (
-        search_q in p["Nome do(a) Paciente"].lower()
-        or search_q in p["Nascimento"].lower()
-        or search_q in p["Endereço"].lower()
-    ):
-        continue
-
-    base_row = {
-        "Nome do(a) Paciente": p["Nome do(a) Paciente"],
-        "Nascimento": p["Nascimento"],
-        "Idade": p["Idade"],
-        "Endereço": p["Endereço"],
-        "Microárea": p["Microárea"],
-    }
-    row_disp = dict(base_row)
-    row_exp = dict(base_row)
-
-    if is_geral_tab:
-        for m in current_metrics:
-            col_label = m.get("shortName") or m.get("name")
-            ok = p["_metrics"].get(m["id"], False)
-            row_disp[col_label] = "✅ Atingido" if ok else "❌ Pendente"
-            row_exp[col_label] = "ATINGIDO" if ok else "PENDENTE"
-    else:
-        row_disp["Status"] = "🔴 Pendente"
-        row_exp["Status"] = "PENDENTE"
-
-    filtered_display.append(row_disp)
-    filtered_export.append(row_exp)
-
-df_display = pd.DataFrame(filtered_display)
-df_export = pd.DataFrame(filtered_export)
-
-info_col, btn_csv_col, btn_xlsx_col = st.columns([3.5, 1, 1])
-
-if is_geral_tab:
-    info_col.markdown(
-        f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
-        f"<i class='fa-solid fa-users' style='color: #3b82f6;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_display)}</strong> de {total_patients} pacientes na Matriz Geral.</p>",
-        unsafe_allow_html=True,
-    )
-else:
-    m_title = target_metric.get("shortName") or target_metric.get("name") if target_metric else ""
-    info_col.markdown(
-        f"<p style='font-size: 0.88rem; color: #64748b; font-weight: 600; margin-top: 0.45rem;'>"
-        f"<i class='fa-solid fa-triangle-exclamation' style='color: #f43f5e;'></i> Exibindo <strong style='color: #1e293b;'>{len(df_display)}</strong> pacientes com pendência em <strong style='color: #1e293b;'>{m_title}</strong>.</p>",
-        unsafe_allow_html=True,
-    )
-
-pendencia_suffix = f"Pendencia_{target_metric['id']}" if target_metric else "Pendencia"
-base_filename = (
-    f"Acompanhamento_{re.sub(r'[^a-zA-Z0-9]', '_', cond_cfg['full_label'])}_"
-    f"{'Matriz_Geral' if is_geral_tab else pendencia_suffix}"
-)
-
-btn_csv_col.download_button(
-    "📄 Exportar CSV",
-    data=df_export.to_csv(index=False, sep=";").encode("utf-8-sig"),
-    file_name=f"{base_filename}.csv",
-    mime="text/csv",
-    use_container_width=True,
-)
-btn_xlsx_col.download_button(
-    "📊 Exportar XLSX",
-    data=to_excel_bytes(df_export),
-    file_name=f"{base_filename}.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    use_container_width=True,
-)
-
-if df_display.empty:
-    st.info("Nenhum paciente encontrado com estes filtros.")
-else:
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True,
-        height=460,
-        column_config={
-            "Nome do(a) Paciente": st.column_config.TextColumn(pinned=True, width="medium"),
-        },
-    )
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Footer igual ao original
-st.markdown(
-    """
-    <div class="esus-footer">
-        Gerado a partir dos dados do e-SUS PEC • by @argsite
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+    f_col3
