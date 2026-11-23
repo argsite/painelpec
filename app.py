@@ -736,7 +736,7 @@ CONDITIONS = {
                 "icon": "fa-microscope",
                 "hex": "#ec4899",
                 "bg": "#fce7f3",
-                "searches": ["cito", "preventivo", "colo"],
+                "forceCol": 41,
                 "maxDays": 1095,
             },
             {
