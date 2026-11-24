@@ -224,7 +224,7 @@ st.markdown(
         }
         .kpi-value {
             font-size: 2.15rem;
-            font-weight: 900 !important; /* era 800 */
+            font-weight: 900 !important;
             color: #1e293b;
             line-height: 1.1;
             margin: 0;
@@ -557,7 +557,7 @@ CONDITIONS = {
                 "hex": "#a855f7",
                 "bg": "#f3e8ff",
                 "forceCol": 46,
-                "requireDate": True,
+                "minNumber": 1,
             },
         ],
     },
@@ -1296,6 +1296,12 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
                 if 0 <= c_idx < len(row):
                     v = sanitize_text(row[c_idx])
                     has_met = v not in ("", "-")
+            elif m.get("minNumber") is not None:
+                c_idx = metric_cols[mid]
+                if 0 <= c_idx < len(row):
+                    v = sanitize_text(row[c_idx]).strip()
+                    if re.fullmatch(r"\d+", v):
+                        has_met = int(v) >= m["minNumber"]
             elif m.get("checkSim") and m.get("forceCols"):
                 for c in m["forceCols"]:
                     if len(row) > c and sanitize_text(row[c]).upper() == "SIM":
