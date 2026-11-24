@@ -224,7 +224,7 @@ st.markdown(
         }
         .kpi-value {
             font-size: 2.15rem;
-            font-weight: 900 !important;
+            font-weight: 900 !important; /* era 800 */
             color: #1e293b;
             line-height: 1.1;
             margin: 0;
@@ -556,7 +556,8 @@ CONDITIONS = {
                 "icon": "fa-tooth",
                 "hex": "#a855f7",
                 "bg": "#f3e8ff",
-                "searches": ["odonto", "odontologico", "odontológico"],
+                "forceCol": 46,
+                "requireDate": True,
             },
         ],
     },
