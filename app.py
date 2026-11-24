@@ -589,6 +589,78 @@ CONDITIONS = {
                 "id": "peso_altura",
                 "shortName": "Peso/Altura (12m)",
                 "bpDesc": "Ter pelo menos 01 (um) registro simultâneos de peso e altura realizado nos últimos 12 (doze) meses.",
+                "points": 15,
+                "hidden": True,
+                "forceCol": 31,
+                "maxDays": 365,
+            },
+            {
+                "id": "visita_acs",
+                "shortName": "Visita ACS (12m)",
+                "bpDesc": "Ter pelo menos 02 (duas) visitas domiciliares realizadas por ACS/TACS, com intervalo mínimo de 30 (trinta) dias, nos últimos 12 (doze) meses.",
+                "points": 20,
+                "hidden": True,
+                "forceCol": 27,
+                "maxDays": 365,
+            },
+            {
+                "id": "hba1c",
+                "shortName": "Solic. HbA1c",
+                "bpDesc": "Ter pelo menos 01 (um) registro de solicitação de hemoglobina glicada realizada ou avaliada, nos últimos 12 (doze) meses.",
+                "points": 15,
+                "name": "HBA1C Solicitada",
+                "icon": "fa-vial",
+                "hex": "#14b8a6",
+                "bg": "#ccfbf1",
+                "forceCol": 36,
+                "maxDays": 365,
+            },
+            {
+                "id": "pes",
+                "shortName": "Avaliação Pés",
+                "bpDesc": "Ter pelo menos 01 (uma) avaliação dos pés realizada nos últimos 12 (doze) meses.",
+                "points": 15,
+                "name": "Avaliação Pés",
+                "icon": "fa-shoe-prints",
+                "hex": "#6366f1",
+                "bg": "#e0e7ff",
+                "forceCol": 39,
+                "maxDays": 365,
+            },
+        ],
+    },
+    "hipertensos": {
+        "label": "C5 - Hipertensos",
+        "full_label": "C5 - Hipertensos",
+        "file": "acompanhamento-condicao-saude_2026-11-04-15-17 (1).csv",
+        "kind": "condicao",
+        "metrics": [
+            {
+                "id": "consulta_med",
+                "shortName": "Cons. Médica (6m)",
+                "bpDesc": "Ter pelo menos 01 (uma) consulta presencial ou remota realizadas por médica(o) ou enfermeira(o), nos últimos 06 (seis) meses.",
+                "points": 25,
+                "hidden": True,
+                "forceCol": 21,
+                "maxDays": 180,
+            },
+            {
+                "id": "pa",
+                "shortName": "Aferição de PA (6m)",
+                "bpDesc": "Ter pelo menos 01 (um) registro de aferição de pressão arterial realizado nos últimos 06 (seis) meses.",
+                "points": 25,
+                "name": "Aferição de PA",
+                "icon": "fa-heart-pulse",
+                "hex": "#f43f5e",
+                "bg": "#ffe4e6",
+                "forceCol": 34,
+                "maxDays": 180,
+                "requireDate": True,
+            },
+            {
+                "id": "peso_altura",
+                "shortName": "Peso/Altura (12m)",
+                "bpDesc": "Ter pelo menos 01 (um) registro simultâneos de peso e altura realizado nos últimos 12 (doze) meses.",
                 "points": 25,
                 "hidden": True,
                 "forceCol": 31,
@@ -1031,7 +1103,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
 
     if condition_key == "gestantes":
         header_idx = 25
-    elif condition_key in ("mulher", "hipertensos"):
+    elif condition_key in ("mulher", "hipertensos", "diabeticos"):
         header_idx = 24
     else:
         header_idx = 24
