@@ -819,6 +819,200 @@ def decode_csv_bytes(raw_bytes: bytes) -> str:
         try:
             text = raw_bytes.decode(enc)
             return sanitize_text(text)
+        except UnicodeDecodeError:
+            continue
+    return sanitize_text(raw_bytes.decode("utf-8", errors="replace"))
+
+
+def parse_rows(csv_text: str) -> list[list[str]]:
+    lines = csv_text.splitlines()
+    if not lines:
+        return []
+    first_chunk = "\n".join(lines[:30])
+    delimiter = ";" if first_chunk.count(";") >= first_chunk.count(",") else ","
+    return list(csv.reader(lines, delimiter=delimiter))
+
+
+def extract_age_years(idade_raw: str, current_year: int) -> int | None:
+    if not idade_raw or idade_raw == "-":
+        return None
+    m_date = re.search(r"\d{2}/\d{2}/(\d{4})", idade_raw)
+    if m_date:
+        return current_year - int(m_date.group(1))
+    low = idade_raw.lower()
+    if "menor" in low or (("mes" in low or "dia" in low) and not re.search(r"^\d+\s*ano", low)):
+        return 0
+    m_num = re.match(r"^(\d+)", idade_raw)
+    if m_num:
+        return int(m_num.group(1))
+    return None
+
+
+def has_date_or_recent(val: str, max_days: int | None, require_date: bool = False) -> bool:
+    if not val or val == "-":
+        return False
+    val = val.strip()
+    if not require_date:
+        if val.upper() == "SIM":
+            return True
+        if re.fullmatch(r"\d+", val):
+            return True if max_days is None else int(val) <= max_days
+
+    m = re.search(r"(\d{2})/(\d{2})/(\d{2,4})", val)
+    if m:
+        if max_days is None:
+            return True
+        day, month, year_str = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        year = year_str + 2000 if year_str < 100 else year_str
+        try:
+            dt = datetime(year, month, day)
+            ref = datetime.now()
+            return abs((ref - dt).days) <= max_days
+        except ValueError:
+            return False
+    return False
+
+
+def split_cpf_cns(doc_raw: str) -> tuple[str, str]:
+    """Separa CPF (11 dígitos) e CNS (15 dígitos) em valores distintos."""
+    if not doc_raw or doc_raw == "-":
+        return "-", "-"
+    cpf_val = "-"
+    cns_val = "-"
+    tokens = re.split(r"[/|;,\s]+", doc_raw.strip())
+    for tok in tokens:
+        digits = re.sub(r"\D", "", tok)
+        if len(digits) == 11 and cpf_val == "-":
+            cpf_val = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        elif len(digits) == 15 and cns_val == "-":
+            cns_val = digits
+    if cpf_val == "-" and cns_val == "-":
+        digits = re.sub(r"\D", "", doc_raw)
+        if len(digits) == 11:
+            cpf_val = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        elif len(digits) == 15:
+            cns_val = digits
+    return cpf_val, cns_val
+
+
+def is_missing_cpf(doc_raw: str) -> bool:
+    cpf_val, _ = split_cpf_cns(doc_raw)
+    return cpf_val == "-"
+
+
+@st.cache_data(show_spinner=False)
+def analyze_vinculados_data(csv_text: str) -> dict:
+    rows = parse_rows(csv_text)
+    if not rows:
+        return {}
+
+    header_idx = -1
+    for i in range(min(len(rows), 40)):
+        if not rows[i]:
+            continue
+        row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
+        if "microarea" in row_norm and "nome" in row_norm:
+            header_idx = i
+            break
+
+    if header_idx == -1 or header_idx >= len(rows):
+        return {}
+
+    fields = [sanitize_text(f) for f in rows[header_idx]]
+    data_rows = rows[header_idx + 1 :]
+
+    def find_col(exact_names: list[str], fallback_substrings: list[str] | None = None) -> int:
+        for idx, f in enumerate(fields):
+            norm = strip_accents(f.lower()).strip()
+            if norm in exact_names:
+                return idx
+        if fallback_substrings:
+            for idx, f in enumerate(fields):
+                norm = strip_accents(f.lower()).strip()
+                if any(sub in norm for sub in fallback_substrings):
+                    return idx
+        return -1
+
+    col_equipe = find_col(["nome equipe", "equipe"])
+    col_micro = find_col(["microarea"], ["microarea"])
+    col_end = find_col(["endereco"], ["endereco"])
+    col_cpf = find_col(["cpf/cns", "cpf", "cns"], ["cpf", "cns"])
+    col_nome = find_col(["nome", "nome do cidadao", "cidadao"])
+    col_idade = find_col(["idade"], ["idade"])
+    col_sexo = find_col(["sexo"])
+    col_nasc = find_col(["data de nascimento", "nascimento"], ["nascimento"])
+    col_cel = find_col(["telefone celular", "celular"], ["celular"])
+    col_res = find_col(["telefone residencial", "residencial"], ["residencial"])
+    col_cont = find_col(["telefone de contato", "contato"], ["contato"])
+    col_atual = find_col(["ultima atualizacao cadastral", "atualizacao cadastral"], ["atualizacao"])
+
+    total = 0
+    sexo_counts = {"Feminino": 0, "Masculino": 0}
+    faixa_counts = {
+        "0-19 anos": 0,
+        "20-39 anos": 0,
+        "40-59 anos": 0,
+        "60-79 anos": 0,
+        "80+ anos": 0,
+    }
+    microareas: dict[str, int] = {}
+    com_telefone = 0
+    sem_cpf = 0
+    sem_endereco = 0
+    patients = []
+    current_year = datetime.now().year
+
+    for row in data_rows:
+        if not row or len(row) < 4:
+            continue
+        nome = sanitize_text(row[col_nome]) if 0 <= col_nome < len(row) else ""
+        if not nome:
+            continue
+
+        total += 1
+        equipe = sanitize_text(row[col_equipe]) if 0 <= col_equipe < len(row) and sanitize_text(row[col_equipe]) else "-"
+        micro = sanitize_text(row[col_micro]) if 0 <= col_micro < len(row) and sanitize_text(row[col_micro]) else "Não informada"
+        endereco = sanitize_text(row[col_end]) if 0 <= col_end < len(row) and sanitize_text(row[col_end]) else "-"
+        cpf_cns = sanitize_text(row[col_cpf]) if 0 <= col_cpf < len(row) and sanitize_text(row[col_cpf]) else "-"
+        cpf_val, cns_val = split_cpf_cns(cpf_cns)
+        idade_txt = sanitize_text(row[col_idade]) if 0 <= col_idade < len(row) and sanitize_text(row[col_idade]) else "-"
+        sexo_txt = sanitize_text(row[col_sexo]) if 0 <= col_sexo < len(row) and sanitize_text(row[col_sexo]) else "-"
+        nasc_txt = sanitize_text(row[col_nasc]) if 0 <= col_nasc < len(row) and sanitize_text(row[col_nasc]) else "-"
+        cel_txt = sanitize_text(row[col_cel]) if 0 <= col_cel < len(row) and sanitize_text(row[col_cel]) else "-"
+        res_txt = sanitize_text(row[col_res]) if 0 <= col_res < len(row) and sanitize_text(row[col_res]) else "-"
+        cont_txt = sanitize_text(row[col_cont]) if 0 <= col_cont < len(row) and sanitize_text(row[col_cont]) else "-"
+        atual_txt = sanitize_text(row[col_atual]) if 0 <= col_atual < len(row) and sanitize_text(row[col_atual]) else "-"
+
+        microareas[micro] = microareas.get(micro, 0) + 1
+
+        if sexo_txt.lower().startswith("f"):
+            sexo_counts["Feminino"] += 1
+        elif sexo_txt.lower().startswith("m"):
+            sexo_counts["Masculino"] += 1
+
+        faixa_str = ""
+        idade_num = extract_age_years(idade_txt, current_year)
+        if idade_num is not None:
+            if idade_num < 20:
+                faixa_counts["0-19 anos"] += 1
+                faixa_str = "0-19 anos"
+            elif idade_num < 40:
+                faixa_counts["20-39 anos"] += 1
+                faixa_str = "20-39 anos"
+            elif idade_num < 60:
+                faixa_counts["40-59 anos"] += 1
+                faixa_str = "40-59 anos"
+            elif idade_num < 80:
+                faixa_counts["60-79 anos"] += 1
+                faixa_str = "60-79 anos"
+            else:
+                faixa_counts["80+ anos"] += 1
+                faixa_str = "80+ anos"
+
+        has_phone = any(t not in ("", "-") for t in (cel_txt, res_txt, cont_txt))
+        if has_phone:
+            com_telefone += 1
+
         no_addr = endereco in ("", "-")
         if no_addr:
             sem_endereco += 1
