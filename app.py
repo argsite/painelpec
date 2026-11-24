@@ -829,34 +829,34 @@ def decode_csv_bytes(raw_bytes: bytes) -> str:
             return sanitize_text(text)
         except UnicodeDecodeError:
             continue
-    return sanitize_text(raw_bytes.decode("utf-8", errors="replace"))
+def extract_report_date(rows: list[list[str]]) -> datetime:
+    """Extrai a data de emissão do cabeçalho superior do CSV do e-SUS PEC."""
+    for row in rows[:20]:
+        line = " ".join(sanitize_text(c) for c in row)
+        if any(k in strip_accents(line.lower()) for k in ("gerado em", "data de emissao", "data:", "periodo")):
+            m = re.search(r"(\d{2})/(\d{2})/(\d{4})", line)
+            if m:
+                try:
+                    return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+                except ValueError:
+                    pass
+    for row in rows[:15]:
+        line = " ".join(sanitize_text(c) for c in row)
+        m = re.search(r"(\d{2})/(\d{2})/(\d{4})", line)
+        if m:
+            try:
+                return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            except ValueError:
+                pass
+    return datetime.now()
 
 
-def parse_rows(csv_text: str) -> list[list[str]]:
-    lines = csv_text.splitlines()
-    if not lines:
-        return []
-    first_chunk = "\n".join(lines[:30])
-    delimiter = ";" if first_chunk.count(";") >= first_chunk.count(",") else ","
-    return list(csv.reader(lines, delimiter=delimiter))
-
-
-def extract_age_years(idade_raw: str, current_year: int) -> int | None:
-    if not idade_raw or idade_raw == "-":
-        return None
-    m_date = re.search(r"\d{2}/\d{2}/(\d{4})", idade_raw)
-    if m_date:
-        return current_year - int(m_date.group(1))
-    low = idade_raw.lower()
-    if "menor" in low or (("mes" in low or "dia" in low) and not re.search(r"^\d+\s*ano", low)):
-        return 0
-    m_num = re.match(r"^(\d+)", idade_raw)
-    if m_num:
-        return int(m_num.group(1))
-    return None
-
-
-def has_date_or_recent(val: str, max_days: int | None, require_date: bool = False) -> bool:
+def has_date_or_recent(
+    val: str,
+    max_days: int | None,
+    require_date: bool = False,
+    ref_date: datetime | None = None,
+) -> bool:
     if not val or val == "-":
         return False
     val = val.strip()
@@ -874,8 +874,8 @@ def has_date_or_recent(val: str, max_days: int | None, require_date: bool = Fals
         year = year_str + 2000 if year_str < 100 else year_str
         try:
             dt = datetime(year, month, day)
-            ref = datetime.now()
-            return abs((ref - dt).days) <= max_days
+            ref = ref_date if ref_date is not None else datetime.now()
+            return 0 <= (ref - dt).days <= max_days
         except ValueError:
             return False
     return False
@@ -1103,6 +1103,8 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
     if not rows:
         return {}
 
+    ref_date = extract_report_date(rows)
+
     if condition_key == "gestantes":
         header_idx = 25
     elif condition_key == "diabeticos":
@@ -1286,6 +1288,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
                         sanitize_text(row[c_idx]),
                         m.get("maxDays"),
                         require_date=bool(m.get("requireDate")),
+                        ref_date=ref_date,
                     )
 
             has_nominal_met = has_met
