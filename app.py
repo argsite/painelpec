@@ -512,7 +512,7 @@ CONDITIONS = {
                 "points": 9,
                 "hidden": True,
                 "forceCol": 47,
-                "notDash": True,
+                "containsText": "dtpa",
             },
             {
                 "id": "testes_1tri",
@@ -1296,6 +1296,11 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
                 if 0 <= c_idx < len(row):
                     v = sanitize_text(row[c_idx])
                     has_met = v not in ("", "-")
+            elif m.get("containsText"):
+                c_idx = metric_cols[mid]
+                if 0 <= c_idx < len(row):
+                    v = strip_accents(sanitize_text(row[c_idx]).lower())
+                    has_met = strip_accents(m["containsText"].lower()) in v
             elif m.get("minNumber") is not None:
                 c_idx = metric_cols[mid]
                 if 0 <= c_idx < len(row):
