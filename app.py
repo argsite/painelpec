@@ -747,6 +747,10 @@ CONDITIONS = {
                 "bpDesc": "Ter pelo menos 01 (uma) dose da vacina HPV para crianças e adolescentes do sexo feminino de 09 a 14 anos de idade.",
                 "points": 30,
                 "hidden": True,
+                "forceCol": 46,
+                "notDash": True,
+                "ageRange": (9, 14),
+                "nominalIgnoreAge": True,
             },
             {
                 "id": "saude_sexual",
@@ -1243,6 +1247,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
                 faixa_str = "80+ anos"
 
         p_metrics = {}
+        p_nominal_metrics = {}
         for m in current_metrics:
             mid = m["id"]
             has_met = False
@@ -1278,7 +1283,17 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
                         require_date=bool(m.get("requireDate")),
                     )
 
+            has_nominal_met = has_met
+            age_range = m.get("ageRange")
+            if age_range is not None:
+                min_age, max_age = age_range
+                in_age = idade_num is not None and (min_age <= idade_num <= max_age)
+                has_met = has_met and in_age
+                if not m.get("nominalIgnoreAge"):
+                    has_nominal_met = has_met
+
             p_metrics[mid] = has_met
+            p_nominal_metrics[mid] = has_nominal_met
             if has_met:
                 metric_counts[mid] += 1
 
@@ -1292,6 +1307,7 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
             "DPP": dpp_display,
             "_faixa": faixa_str,
             "_metrics": p_metrics,
+            "_nominal_metrics": p_nominal_metrics,
         })
 
     return {
@@ -2012,8 +2028,9 @@ filtered_display = []
 filtered_export = []
 
 for p in stats["patients"]:
+    nom_metrics = p.get("_nominal_metrics", p["_metrics"])
     if not is_geral_tab and target_metric is not None:
-        if p["_metrics"].get(target_metric["id"]):
+        if nom_metrics.get(target_metric["id"]):
             continue
     if sel_micro != "Todas as Microáreas" and p["Microárea"] != sel_micro:
         continue
@@ -2043,7 +2060,7 @@ for p in stats["patients"]:
     if is_geral_tab:
         for m in current_metrics:
             col_label = m.get("shortName") or m.get("name")
-            ok = p["_metrics"].get(m["id"], False)
+            ok = nom_metrics.get(m["id"], False)
             row_disp[col_label] = "✅ Atingido" if ok else "❌ Pendente"
             row_exp[col_label] = "ATINGIDO" if ok else "PENDENTE"
     else:
