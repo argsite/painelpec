@@ -829,6 +829,34 @@ def decode_csv_bytes(raw_bytes: bytes) -> str:
             return sanitize_text(text)
         except UnicodeDecodeError:
             continue
+    return sanitize_text(raw_bytes.decode("latin-1", errors="replace"))
+
+
+def parse_rows(csv_text: str) -> list[list[str]]:
+    first_line = csv_text.splitlines()[0] if csv_text.splitlines() else ""
+    delimiter = ";" if first_line.count(";") >= first_line.count(",") else ","
+    reader = csv.reader(io.StringIO(csv_text), delimiter=delimiter)
+    return list(reader)
+
+
+def extract_age_years(idade_raw: str, current_year: int) -> int | None:
+    if not idade_raw or idade_raw == "-":
+        return None
+    m_ano = re.search(r"(\d+)\s*a", idade_raw.lower())
+    if m_ano:
+        return int(m_ano.group(1))
+    m_num = re.search(r"\b(\d+)\b", idade_raw)
+    if m_num and "m" not in idade_raw.lower() and "d" not in idade_raw.lower():
+        val = int(m_num.group(1))
+        return val if val < 130 else None
+    m_data = re.search(r"(\d{2})/(\d{2})/(\d{4})", idade_raw)
+    if m_data:
+        return current_year - int(m_data.group(3))
+    if "m" in idade_raw.lower() or "d" in idade_raw.lower():
+        return 0
+    return None
+
+
 def extract_report_date(rows: list[list[str]]) -> datetime:
     """Extrai a data de emissão do cabeçalho superior do CSV do e-SUS PEC."""
     for row in rows[:20]:
