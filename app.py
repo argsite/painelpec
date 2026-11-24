@@ -932,7 +932,7 @@ def is_missing_cpf(doc_raw: str) -> bool:
 
 
 @st.cache_data(show_spinner=False)
-def analyze_vinculados_data(csv_text: str) -> dict:
+def analyze_condition_data(csv_text: str, condition_key: str, _cache_v: int = 2) -> dict:
     rows = parse_rows(csv_text)
     if not rows:
         return {}
@@ -1197,6 +1197,14 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
         if metric_cols[m["id"]] == -1 and m.get("forceCol") is not None:
             metric_cols[m["id"]] = m["forceCol"]
 
+    # Garante mapeamento exato pelo cabeçalho da linha 26 para 7 Pesos/Alturas (coluna AY)
+    if condition_key == "gestantes":
+        for idx, f in enumerate(fields):
+            norm_f = strip_accents(sanitize_text(f).lower())
+            if "peso" in norm_f and "altura" in norm_f and ("simult" in norm_f or "quant" in norm_f) and "data" not in norm_f:
+                metric_cols["peso_7"] = idx
+                break
+
     total = 0
     metric_counts = {m["id"]: 0 for m in current_metrics}
     microareas: dict[str, int] = {}
@@ -1305,9 +1313,11 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
             elif m.get("minNumber") is not None:
                 c_idx = metric_cols[mid]
                 if 0 <= c_idx < len(row):
-                    v = sanitize_text(row[c_idx]).strip()
-                    if re.fullmatch(r"\d+", v):
-                        has_met = int(v) >= m["minNumber"]
+                    v = sanitize_text(row[c_idx]).strip().replace(",", ".")
+                    try:
+                        has_met = float(v) >= m["minNumber"]
+                    except ValueError:
+                        has_met = False
             elif m.get("checkSim") and m.get("forceCols"):
                 for c in m["forceCols"]:
                     if len(row) > c and sanitize_text(row[c]).upper() == "SIM":
