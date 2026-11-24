@@ -495,8 +495,6 @@ CONDITIONS = {
                 "bpDesc": "Ter pelo menos 07 (sete) registros simultâneos de peso e altura durante o período da gestação.",
                 "points": 9,
                 "hidden": True,
-                "searches": ["quantidade de medi", "simult"],
-                "exclude": "data",
                 "forceCol": 50,
                 "minNumber": 7,
             },
