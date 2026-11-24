@@ -1104,7 +1104,9 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
 
     if condition_key == "gestantes":
         header_idx = 25
-    elif condition_key in ("mulher", "hipertensos", "diabeticos"):
+    elif condition_key == "diabeticos":
+        header_idx = 23
+    elif condition_key in ("mulher", "hipertensos"):
         header_idx = 24
     else:
         header_idx = 24
