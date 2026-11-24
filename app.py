@@ -1009,250 +1009,16 @@ def analyze_vinculados_data(csv_text: str) -> dict:
 
         microareas[micro] = microareas.get(micro, 0) + 1
 
-        if sexo_txt.lower().startswith("f"):
-            sexo_counts["Feminino"] += 1
-        elif sexo_txt.lower().startswith("m"):
-            sexo_counts["Masculino"] += 1
-
-        faixa_str = ""
-        idade_num = extract_age_years(idade_txt, current_year)
-        if idade_num is not None:
-            if idade_num < 20:
-                faixa_counts["0-19 anos"] += 1
-                faixa_str = "0-19 anos"
-            elif idade_num < 40:
-                faixa_counts["20-39 anos"] += 1
-                faixa_str = "20-39 anos"
-            elif idade_num < 60:
-                faixa_counts["40-59 anos"] += 1
-                faixa_str = "40-59 anos"
-            elif idade_num < 80:
-                faixa_counts["60-79 anos"] += 1
-                faixa_str = "60-79 anos"
-            else:
-                faixa_counts["80+ anos"] += 1
-                faixa_str = "80+ anos"
-
-        has_phone = any(t not in ("", "-") for t in (cel_txt, res_txt, cont_txt))
-        if has_phone:
-            com_telefone += 1
-
-        no_addr = endereco in ("", "-")
-        if no_addr:
-            sem_endereco += 1
-
-        no_cpf = cpf_val == "-"
-        if no_cpf:
-            sem_cpf += 1
-
-        patients.append({
-            "Nome do(a) Paciente": nome,
-            "CPF": cpf_val,
-            "CNS": cns_val,
-            "Nascimento": nasc_txt,
-            "Idade": idade_txt,
-            "Sexo": sexo_txt,
-            "Endereço": endereco,
-            "Microárea": micro,
-            "Celular": cel_txt,
-            "Contato": cont_txt if cont_txt != "-" else res_txt,
-            "Última Atualização": atual_txt,
-            "Equipe": equipe,
-            "_faixa": faixa_str,
-            "_sem_endereco": no_addr,
-            "_sem_telefone": not has_phone,
-            "_sem_cpf": no_cpf,
-        })
-
-    return {
-        "total": total,
-        "com_telefone": com_telefone,
-        "sem_endereco": sem_endereco,
-        "sem_cpf": sem_cpf,
-        "microareas": microareas,
-        "sexo": sexo_counts,
-        "faixa_etaria": faixa_counts,
-        "patients": patients,
-    }
-
-
-@st.cache_data(show_spinner=False)
-def analyze_duplicados_data(csv_text: str) -> dict:
-    """Lê o relatório de possíveis cadastros duplicados (cabeçalho na linha 15 / índice 14)
-    contendo dois cidadãos por linha:
-      - Cidadão 1: Nome (Coluna B / idx 1), Data de Nascimento (Coluna E / idx 4), Nome da Mãe (Coluna F / idx 5)
-      - Cidadão 2: Nome (Coluna H / idx 7), Data de Nascimento (Coluna K / idx 10), Nome da Mãe (Coluna L / idx 11)
-    """
-    rows = parse_rows(csv_text)
-    if not rows:
-        return {}
-
-    # Linha 15 em base-1 corresponde ao índice 14
-    header_idx = 14
-    if header_idx >= len(rows):
-        return {}
-
-    # Verifica se há cabeçalho próximo caso haja variação de 1-2 linhas em exportações futuras
-    for cand_idx in (14, 13, 15, 12, 16):
-        if 0 <= cand_idx < len(rows) and rows[cand_idx]:
-            row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[cand_idx]).lower())
-            if "nome" in row_norm or "cidadao" in row_norm or "nascimento" in row_norm:
-                header_idx = cand_idx
-                break
-
-    data_rows = rows[header_idx + 1 :]
-    records = []
-
-    for row in data_rows:
-        if not row or len(row) < 8:
-            continue
-
-        def get_col(idx: int, default: str = "-") -> str:
-            if 0 <= idx < len(row):
-                v = sanitize_text(row[idx])
-                return v if v else default
-            return default
-
-        nome_1 = get_col(1, "")   # Coluna B
-        nasc_1 = get_col(4, "-")  # Coluna E
-        mae_1 = get_col(5, "-")   # Coluna F
-        nome_2 = get_col(7, "")   # Coluna H
-        nasc_2 = get_col(10, "-") # Coluna K
-        mae_2 = get_col(11, "-")  # Coluna L
-
-        # Ignora linhas vazias ou rodapés informativos do relatório
-        if not nome_1 and not nome_2:
-            continue
-
-        records.append({
-            "Nome do Cidadão 1": nome_1 if nome_1 else "-",
-            "Data de Nascimento Cidadão 1": nasc_1,
-            "Nome da Mãe Cidadão 1": mae_1,
-            "Nome do Cidadão 2": nome_2 if nome_2 else "-",
-            "Data de Nascimento Cidadão 2": nasc_2,
-            "Nome da Mãe Cidadão 2": mae_2,
-        })
-
-    return {
-        "total": len(records),
-        "records": records,
-    }
-
-
-@st.cache_data(show_spinner=False)
-def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
-    rows = parse_rows(csv_text)
-    if not rows:
-        return {}
-
-    # Linha 25 (índice 24) para a maioria dos relatórios; Linha 26 (índice 25) para Gestantes
-    if condition_key == "gestantes":
-        header_idx = 25
-    elif condition_key == "mulher":
-        header_idx = 24
-    else:
-        header_idx = 24
-        for i in range(min(len(rows), 50)):
-            if not rows[i]:
-                continue
-            row_norm = strip_accents(" ".join(sanitize_text(c) for c in rows[i]).lower())
-            if "idade" in row_norm and "sexo" in row_norm:
-                header_idx = i
-                break
-
-    if header_idx >= len(rows):
-        return {}
-
-    fields = rows[header_idx]
-    data_rows = rows[header_idx + 1 :]
-    current_metrics = CONDITIONS[condition_key]["metrics"]
-
-    col_micro = col_idade = col_nome = col_sexo = col_nascimento = -1
-    col_rua = col_num = col_bairro = -1
-    metric_cols = {m["id"]: -1 for m in current_metrics}
-
-    for idx, f in enumerate(fields):
-        if not f:
-            continue
-        norm = strip_accents(sanitize_text(f).lower()).strip()
-        if any(k in norm for k in ("nome", "cidadao", "paciente")):
-            col_nome = idx
-        if norm in ("microarea", "microarea / area") or "micro" in norm:
-            col_micro = idx
-        if norm in ("idade", "idade (anos)"):
-            col_idade = idx
-        if norm == "sexo":
-            col_sexo = idx
-        if "nascimento" in norm:
-            col_nascimento = idx
-        if norm in ("rua", "logradouro", "endereco"):
-            col_rua = idx
-        if norm in ("numero", "n"):
-            col_num = idx
-        if norm == "bairro":
-            col_bairro = idx
-
-        for m in current_metrics:
-            searches = m.get("searches")
-            if not searches:
-                continue
-            matched = False
-            for s in searches:
-                s_norm = strip_accents(s.lower())
-                if s_norm in ("pe", "pes", "pa"):
-                    if re.search(rf"\b{s_norm}\b", norm):
-                        matched = True
-                        break
-                elif s_norm in norm:
-                    matched = True
-                    break
-            excluded = m.get("exclude")
-            pass_excl = (strip_accents(excluded.lower()) not in norm) if excluded else True
-            if matched and pass_excl:
-                metric_cols[m["id"]] = idx
-
-    for m in current_metrics:
-        if metric_cols[m["id"]] == -1 and m.get("forceCol") is not None:
-            if len(fields) > m["forceCol"]:
-                metric_cols[m["id"]] = m["forceCol"]
-
-    total = 0
-    metric_counts = {m["id"]: 0 for m in current_metrics}
-    microareas: dict[str, int] = {}
-    sexo_counts = {"Feminino": 0, "Masculino": 0}
-    faixa_counts = {
-        "0-19 anos": 0,
-        "20-39 anos": 0,
-        "40-59 anos": 0,
-        "60-79 anos": 0,
-        "80+ anos": 0,
-    }
-    patients = []
-    current_year = datetime.now().year
-
-    for row in data_rows:
-        if not row or len(row) < 2:
-            continue
-        nome_raw = sanitize_text(row[col_nome]) if 0 <= col_nome < len(row) else ""
-        idade_raw = sanitize_text(row[col_idade]) if 0 <= col_idade < len(row) else ""
-        if col_nome != -1 and not nome_raw and col_idade != -1 and not idade_raw:
-            continue
-
-        total += 1
-        nome = nome_raw if nome_raw else f"Paciente {total}"
-        micro = sanitize_text(row[col_micro]) if 0 <= col_micro < len(row) and sanitize_text(row[col_micro]) else "Sem Micro"
-        nascimento = sanitize_text(row[col_nascimento]) if 0 <= col_nascimento < len(row) and sanitize_text(row[col_nascimento]) else "-"
-
-        end_parts = []
-        if 0 <= col_rua < len(row) and sanitize_text(row[col_rua]):
-            end_parts.append(sanitize_text(row[col_rua]))
-        if 0 <= col_num < len(row) and sanitize_text(row[col_num]):
-            end_parts.append(f"Nº {sanitize_text(row[col_num])}")
-        if 0 <= col_bairro < len(row) and sanitize_text(row[col_bairro]):
-            end_parts.append(sanitize_text(row[col_bairro]))
-        endereco = ", ".join(end_parts).upper() if end_parts else "-"
-
-        microareas[micro] = microareas.get(micro, 0) + 1
+        # Colunas específicas de C3 - Gestantes e Puérperas: AL (índice 37) e AN (índice 39)
+        ig_display = "-"
+        dpp_display = "-"
+        if condition_key == "gestantes":
+            ig_raw = sanitize_text(row[37]) if len(row) > 37 else ""
+            if ig_raw and ig_raw != "-":
+                ig_display = f"{ig_raw} semanas" if re.fullmatch(r"\d+", ig_raw) else ig_raw
+            dpp_raw = sanitize_text(row[39]) if len(row) > 39 else ""
+            if dpp_raw:
+                dpp_display = dpp_raw
 
         if 0 <= col_sexo < len(row):
             s_val = sanitize_text(row[col_sexo]).lower()
@@ -1328,6 +1094,8 @@ def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
             "Idade": idade_texto,
             "Endereço": endereco,
             "Microárea": micro,
+            "Idade Gestacional": ig_display,
+            "DPP": dpp_display,
             "_faixa": faixa_str,
             "_metrics": p_metrics,
         })
@@ -2071,6 +1839,10 @@ for p in stats["patients"]:
         "Endereço": p["Endereço"],
         "Microárea": p["Microárea"],
     }
+    if current_cond == "gestantes":
+        base_row["Idade Gestacional"] = p.get("Idade Gestacional", "-")
+        base_row["DPP"] = p.get("DPP", "-")
+
     row_disp = dict(base_row)
     row_exp = dict(base_row)
 
