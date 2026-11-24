@@ -612,8 +612,9 @@ CONDITIONS = {
                 "icon": "fa-vial",
                 "hex": "#14b8a6",
                 "bg": "#ccfbf1",
-                "forceCol": 36,
+                "forceCol": 39,
                 "maxDays": 365,
+                "requireDate": True,
             },
             {
                 "id": "pes",
