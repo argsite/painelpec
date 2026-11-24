@@ -932,7 +932,7 @@ def is_missing_cpf(doc_raw: str) -> bool:
 
 
 @st.cache_data(show_spinner=False)
-def analyze_condition_data(csv_text: str, condition_key: str, _cache_v: int = 2) -> dict:
+def analyze_vinculados_data(csv_text: str) -> dict:
     rows = parse_rows(csv_text)
     if not rows:
         return {}
@@ -1121,7 +1121,7 @@ def analyze_duplicados_data(csv_text: str) -> dict:
 
 
 @st.cache_data(show_spinner=False)
-def analyze_condition_data(csv_text: str, condition_key: str) -> dict:
+def analyze_condition_data(csv_text: str, condition_key: str, _cache_v: int = 2) -> dict:
     rows = parse_rows(csv_text)
     if not rows:
         return {}
