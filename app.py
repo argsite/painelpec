@@ -2077,7 +2077,18 @@ if not is_geral_tab:
 filtered_display = []
 filtered_export = []
 
-for p in stats["patients"]:
+patients_iter = stats["patients"]
+if current_cond == "gestantes":
+    def _ig_sort_key(patient: dict) -> tuple[int, int]:
+        ig_txt = str(patient.get("Idade Gestacional", "-")).strip()
+        m_ig = re.search(r"(\d+)", ig_txt)
+        if m_ig:
+            return (0, -int(m_ig.group(1)))
+        return (1, 0)
+
+    patients_iter = sorted(patients_iter, key=_ig_sort_key)
+
+for p in patients_iter:
     nom_metrics = p.get("_nominal_metrics", p["_metrics"])
     if not is_geral_tab and target_metric is not None:
         if nom_metrics.get(target_metric["id"]):
