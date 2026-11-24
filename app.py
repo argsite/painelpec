@@ -652,8 +652,7 @@ CONDITIONS = {
                 "icon": "fa-heart-pulse",
                 "hex": "#f43f5e",
                 "bg": "#ffe4e6",
-                "searches": ["pressao", "pa", "afericao", "pressão"],
-                "forceCol": 33,
+                "forceCol": 34,
                 "maxDays": 180,
             },
             {
