@@ -858,24 +858,17 @@ def extract_age_years(idade_raw: str, current_year: int) -> int | None:
 
 
 def extract_report_date(rows: list[list[str]]) -> datetime:
-    """Extrai a data de emissão do cabeçalho superior do CSV do e-SUS PEC."""
+    """Extrai exclusivamente a data de geração/emissão do cabeçalho superior do CSV do e-SUS PEC."""
     for row in rows[:20]:
         line = " ".join(sanitize_text(c) for c in row)
-        if any(k in strip_accents(line.lower()) for k in ("gerado em", "data de emissao", "data:", "periodo")):
+        norm = strip_accents(line.lower())
+        if any(k in norm for k in ("gerado em", "data de emissao", "emitido em")):
             m = re.search(r"(\d{2})/(\d{2})/(\d{4})", line)
             if m:
                 try:
                     return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
                 except ValueError:
                     pass
-    for row in rows[:15]:
-        line = " ".join(sanitize_text(c) for c in row)
-        m = re.search(r"(\d{2})/(\d{2})/(\d{4})", line)
-        if m:
-            try:
-                return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-            except ValueError:
-                pass
     return datetime.now()
 
 
@@ -903,7 +896,7 @@ def has_date_or_recent(
         try:
             dt = datetime(year, month, day)
             ref = ref_date if ref_date is not None else datetime.now()
-            return 0 <= (ref - dt).days <= max_days
+            return abs((ref - dt).days) <= max_days
         except ValueError:
             return False
     return False
