@@ -224,7 +224,7 @@ st.markdown(
         }
         .kpi-value {
             font-size: 2.15rem;
-            font-weight: 900;
+            font-weight: 900 !important;
             color: #1e293b;
             line-height: 1.1;
             margin: 0;
