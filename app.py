@@ -20,7 +20,7 @@ st.set_page_config(
 st.markdown(
     """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         header[data-testid="stHeader"] {
             display: none !important;
@@ -224,7 +224,7 @@ st.markdown(
         }
         .kpi-value {
             font-size: 2.15rem;
-            font-weight: 900 !important;
+            font-weight: 800;
             color: #1e293b;
             line-height: 1.1;
             margin: 0;
@@ -511,7 +511,7 @@ CONDITIONS = {
                 "bpDesc": "Ter vacina acelular contra difteria, tétano, coqueluche (dTpa) registrada a partir da 20ª semana.",
                 "points": 9,
                 "hidden": True,
-                "forceCol": 46,
+                "forceCol": 47,
                 "notDash": True,
             },
             {
